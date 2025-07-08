@@ -1,10 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Button } from 'react-native';
+import { StyleSheet, Text, View, Button, TextInput } from 'react-native';
 import * as Location from 'expo-location';
 import { useState, useEffect } from 'react';
 
 // Geofence radius (meters)
-const GEOFENCE_RADIUS_METERS = 50;
+const GEOFENCE_RADIUS_METERS = 30;
 
 export default function App() {
   const [location, setLocation] = useState(null);
@@ -16,12 +16,13 @@ export default function App() {
   const [subscriber, setSubscriber] = useState(null);
   const [officeAddress, setOfficeAddress] = useState(null);
   const [locationStatus, setLocationStatus] = useState(null);
-  const [distanceFromOffice, setDistanceFromOffice] = useState(null); // ✅ distance state
-
+  const [distanceFromOffice, setDistanceFromOffice] = useState(null);
+  const [employeeId, setEmployeeId] = useState(''); // ✅ New: dynamic employeeId
+  const [employeeName,setEmployeeName] = useState('');
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('https://c2d2-106-51-210-243.ngrok-free.app/api/office-location');
+        const res = await fetch('http://192.168.100.9:3000/api/office-location');
         if (!res.ok) {
           throw new Error(`Failed to fetch office location: ${res.status}`);
         }
@@ -36,7 +37,6 @@ export default function App() {
           longitude: data.longitude,
         });
 
-        // Reverse geocode office location
         try {
           const geocode = await Location.reverseGeocodeAsync({
             latitude: data.latitude,
@@ -65,6 +65,11 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
+    if (!employeeId.trim() || !employeeName.trim()) {
+      setErrorMsg('Please enter your Employee ID and Name.');
+      return;
+    }
+
     try {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -72,7 +77,7 @@ export default function App() {
         return;
       }
 
-      startTracking();
+      startTracking(employeeId);
     } catch (error) {
       console.error('❌ Error during login:', error);
       setErrorMsg('Error starting location tracking.');
@@ -92,7 +97,7 @@ export default function App() {
     }
   };
 
-  const startTracking = async () => {
+  const startTracking = async (employeeId) => {
     try {
       const sub = await Location.watchPositionAsync(
         {
@@ -112,7 +117,6 @@ export default function App() {
 
           let newStatus = 'Unknown';
 
-          // 1. Check geofence and distance
           if (officeCoords) {
             const distance = getDistanceMeters(
               loc.coords.latitude,
@@ -121,7 +125,7 @@ export default function App() {
               officeCoords.longitude
             );
 
-            setDistanceFromOffice(distance); // ✅ Save distance for display
+            setDistanceFromOffice(distance);
 
             console.log(`📏 Distance from office: ${distance.toFixed(2)} meters`);
 
@@ -142,7 +146,6 @@ export default function App() {
             }
           }
 
-          // 2. Reverse geocode
           let readableAddress = 'Unknown address';
           try {
             const geocode = await Location.reverseGeocodeAsync({
@@ -165,8 +168,7 @@ export default function App() {
             readableAddress = 'Reverse geocoding failed';
           }
 
-          // 3. Send location and status together
-          sendLocationWithRetry(loc, readableAddress, newStatus);
+          sendLocationWithRetry(loc, readableAddress, newStatus, employeeId,employeeName);
         }
       );
 
@@ -209,7 +211,24 @@ export default function App() {
       )}
 
       {!trackingStarted ? (
-        <Button title="Login" onPress={handleLogin} />
+        <>
+          <Text style={styles.text}>Enter your Employee ID:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. EMP001"
+            value={employeeId}
+            onChangeText={setEmployeeId}
+            autoCapitalize="characters"
+          />
+          <Text style={styles.text}>Enter your  Name:</Text>
+          <TextInput
+           style={styles.input}
+           placeholder="e.g. vikash singh"
+           value={employeeName}
+          onChangeText={setEmployeeName}
+          />
+          <Button title="Login" onPress={handleLogin} />
+        </>
       ) : (
         <>
           <Text style={styles.text}>{text}</Text>
@@ -221,9 +240,8 @@ export default function App() {
   );
 }
 
-// Haversine formula
 function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000;
   const toRad = (x) => (x * Math.PI) / 180;
 
   const dLat = toRad(lat2 - lat1);
@@ -244,6 +262,8 @@ const sendLocationWithRetry = async (
   location,
   readableAddress,
   newStatus,
+  employeeId,
+  employeeName,
   retries = 3,
   delayMs = 3000
 ) => {
@@ -253,13 +273,14 @@ const sendLocationWithRetry = async (
       timeZone: 'Asia/Kolkata',
     });
 
-    const res = await fetch('https://c2d2-106-51-210-243.ngrok-free.app/api/location', {
+    const res = await fetch('http://192.168.100.9:3000/api/location', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        employeeId: 'EMP001',
+        employeeId,
+        employeeName,
         address: readableAddress,
         timestamp: readableTime,
         status: newStatus,
@@ -284,6 +305,8 @@ const sendLocationWithRetry = async (
           location,
           readableAddress,
           newStatus,
+          employeeId,
+          employeeName,
           retries - 1,
           delayMs
         );
@@ -307,5 +330,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    width: '80%',
+    marginBottom: 16,
+    borderRadius: 4,
   },
 });

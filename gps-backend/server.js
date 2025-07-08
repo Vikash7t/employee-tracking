@@ -3,31 +3,51 @@ const cors = require('cors');
 const app = express();
 const PORT = 3000;
 
-// Dummy in-memory database
-const locations = [];
+const db = require('./db');
+db.getConnection()
+  .then(conn => {
+    console.log('✅ Successfully connected to MySQL!');
+    conn.release();
+  })
+  .catch(err => {
+    console.error('❌ Error connecting to MySQL:', err);
+  });
+
 
 app.use(cors());
 app.use(express.json());
 
-app.post('/api/location', (req, res) => {
-  const { employeeId, address, timestamp, status, } = req.body;
+// ✅ Save location to MySQL
+app.post('/api/location', async (req, res) => {
+  const { employeeId,employeeName, address, timestamp, status } = req.body;
 
-  locations.push({
-    employeeId,
-    address,
-    timestamp,
-    status,
-  });
+  try {
+    await db.query(
+      `INSERT INTO employee_locations 
+        (employee_id, employee_name, latitude, longitude, address, is_inside_office, gps_status, internet_status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        employeeId,
+        employeeName,
+        status?.latitude || 0,
+        status?.longitude || 0,
+        address,
+        status?.isInsideOffice || false,
+        status?.gps || 'off',
+        status?.internet || 'off'
+      ]
+    );
 
-  console.log('New location saved:', req.body);
+    console.log('✅ Location saved to MySQL:', req.body);
 
-  res.json({
-    message: 'Location saved successfully!',
-    totalRecords: locations.length,
-  });
+    res.json({ message: 'Location saved successfully!' });
+  } catch (error) {
+    console.error('❌ Error saving location:', error);
+    res.status(500).json({ message: 'DB error' });
+  }
 });
 
-// ✅ ADD THIS ROUTE
+// ✅ Serve office coordinates
 app.get('/api/office-location', (req, res) => {
   res.json({
     latitude: 12.9857270,
@@ -35,8 +55,15 @@ app.get('/api/office-location', (req, res) => {
   });
 });
 
-app.get('/api/location', (req, res) => {
-  res.json(locations);
+// ✅ Fetch all location entries
+app.get('/api/location', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM employee_locations');
+    res.json(rows);
+  } catch (error) {
+    console.error('❌ Error fetching data:', error);
+    res.status(500).json({ message: 'DB error' });
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
