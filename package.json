@@ -11,7 +11,7 @@
   "dependencies": {
     "@react-native-community/netinfo": "11.4.1",
     "dot-env": "^0.0.1",
-    "expo": "53.0.17",
+    "expo": "53.0.19",
     "expo-location": "~18.1.6",
     "expo-status-bar": "~2.2.3",
     "expo-task-manager": "~13.1.6",

@@ -24,13 +24,11 @@ app.post('/api/location', async (req, res) => {
   try {
     await db.query(
       `INSERT INTO employee_locations 
-        (employee_id, employee_name, latitude, longitude, address, is_inside_office, gps_status, internet_status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (employee_id, employee_name,  address, is_inside_office, gps_status, internet_status) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         employeeId,
         employeeName,
-        status?.latitude || 0,
-        status?.longitude || 0,
         address,
         status?.isInsideOffice || false,
         status?.gps || 'off',

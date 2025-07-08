@@ -22,7 +22,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('http://192.168.100.9:3000/api/office-location');
+        const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/office-location');
         if (!res.ok) {
           throw new Error(`Failed to fetch office location: ${res.status}`);
         }
@@ -273,7 +273,7 @@ const sendLocationWithRetry = async (
       timeZone: 'Asia/Kolkata',
     });
 
-    const res = await fetch('http://192.168.100.9:3000/api/location', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/location', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
