@@ -4,6 +4,7 @@ const app = express();
 const PORT = 3000;
 
 const db = require('./db');
+
 db.getConnection()
   .then(conn => {
     console.log('✅ Successfully connected to MySQL!');
@@ -13,26 +14,26 @@ db.getConnection()
     console.error('❌ Error connecting to MySQL:', err);
   });
 
-
 app.use(cors());
 app.use(express.json());
 
-// ✅ Save location to MySQL
+// ✅ Save normal location ping
 app.post('/api/location', async (req, res) => {
-  const { employeeId,employeeName, address, timestamp, status } = req.body;
+  const { employeeId, employeeName, address, timestamp, status } = req.body;
 
   try {
     await db.query(
       `INSERT INTO employee_locations 
-        (employee_id, employee_name,  address, is_inside_office, gps_status, internet_status) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
+        (employee_id, employee_name, address, is_inside_office, gps_status, internet_status, timestamp) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
         employeeId,
         employeeName,
         address,
         status?.isInsideOffice || false,
         status?.gps || 'off',
-        status?.internet || 'off'
+        status?.internet || 'off',
+        timestamp
       ]
     );
 
@@ -45,7 +46,89 @@ app.post('/api/location', async (req, res) => {
   }
 });
 
-// ✅ Serve office coordinates
+// ✅ Save outside-for-2-min event
+app.post('/api/location/outside', async (req, res) => {
+  const { employeeId, employeeName, outsideStartTime, outsideAddress } = req.body;
+
+  try {
+    await db.query(
+      `INSERT INTO outside_events
+        (employee_id, employee_name, outside_start_time, outside_address)
+      VALUES (?, ?, ?, ?)`,
+      [
+        employeeId,
+        employeeName,
+        outsideStartTime,
+        outsideAddress
+      ]
+    );
+
+    console.log('✅ Outside event saved:', req.body);
+
+    res.json({ message: 'Outside event saved!' });
+  } catch (error) {
+    console.error('❌ Error saving outside event:', error);
+    res.status(500).json({ message: 'DB error' });
+  }
+});
+
+// ✅ Save return event when user comes back inside
+app.post('/api/employee-return', async (req, res) => {
+  const { employeeId, employeeName, exitTime, reEntryTime, durationMinutes, outsideAddress } = req.body;
+
+  try {
+    await db.query(
+      `INSERT INTO employee_returns
+        (employee_id, employee_name, exit_time, re_entry_time, duration_minutes, outside_address)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        employeeId,
+        employeeName,
+        exitTime,
+        reEntryTime,
+        durationMinutes,
+        outsideAddress
+      ]
+    );
+
+    console.log('✅ Return event saved:', req.body);
+
+    res.json({ message: 'Employee return recorded.' });
+  } catch (error) {
+    console.error('❌ Error saving return event:', error);
+    res.status(500).json({ message: 'DB error' });
+  }
+});
+
+// ✅ Save tracking gap
+app.post('/api/tracking-gap', async (req, res) => {
+  const { employeeId, employeeName, gapStartTime, gapEndTime, durationMinutes, lastKnownAddress } = req.body;
+
+  try {
+    await db.query(
+      `INSERT INTO tracking_gaps
+        (employee_id, employee_name, gap_start_time, gap_end_time, duration_minutes, last_known_address)
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        employeeId,
+        employeeName,
+        gapStartTime,
+        gapEndTime,
+        durationMinutes,
+        lastKnownAddress
+      ]
+    );
+
+    console.log('✅ Tracking gap saved:', req.body);
+
+    res.json({ message: 'Tracking gap saved.' });
+  } catch (error) {
+    console.error('❌ Error saving tracking gap:', error);
+    res.status(500).json({ message: 'DB error' });
+  }
+});
+
+// ✅ Serve dynamic office coordinates
 app.get('/api/office-location', (req, res) => {
   res.json({
     latitude: 12.9857270,
@@ -53,7 +136,7 @@ app.get('/api/office-location', (req, res) => {
   });
 });
 
-// ✅ Fetch all location entries
+// ✅ Fetch all locations (for future dashboard)
 app.get('/api/location', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM employee_locations');
@@ -67,3 +150,4 @@ app.get('/api/location', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
 });
+
