@@ -21,23 +21,25 @@ export default function App() {
   const [employeeId, setEmployeeId] = useState('');
   const [employeeName, setEmployeeName] = useState('');
 
-  // OUTSIDE tracking
+  // Outside tracking
   const [outsideStartTime, setOutsideStartTime] = useState(null);
   const [lastKnownOutsideAddress, setLastKnownOutsideAddress] = useState(null);
   const [outsideReported, setOutsideReported] = useState(false);
 
-  // GAP tracking
+  // Gap tracking
   const [lastLocationTime, setLastLocationTime] = useState(null);
   const [gapStartTime, setGapStartTime] = useState(null);
   const [trackingGapActive, setTrackingGapActive] = useState(false);
 
+  // First login ping tracking
+  const [hasSentLoginPing, setHasSentLoginPing] = useState(false);
+
+  // Fetch office location once
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('http://192.168.100.4:3000/api/office-location');
+        const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/office-location');
         const data = await res.json();
-
-        console.log('🏢 Dynamic office location fetched:', data);
         setOfficeCoords({
           latitude: data.latitude,
           longitude: data.longitude,
@@ -51,7 +53,6 @@ export default function App() {
         if (geocode.length > 0) {
           const addr = geocode[0];
           const readableOfficeAddress = `${addr.name || ''} ${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}, ${addr.country || ''}, ${addr.postalCode || ''}`;
-          console.log('🏢 Office readable address:', readableOfficeAddress);
           setOfficeAddress(readableOfficeAddress);
         }
       } catch (err) {
@@ -61,6 +62,7 @@ export default function App() {
     })();
   }, []);
 
+  // Gap detection
   useEffect(() => {
     let interval;
     if (trackingStarted) {
@@ -69,7 +71,6 @@ export default function App() {
           const now = new Date();
           const diff = (now - lastLocationTime) / 1000;
           if (diff > GAP_TIMEOUT_SECONDS && !trackingGapActive) {
-            console.log('⚠️ GPS gap detected!');
             handleGapStart();
           }
         }
@@ -90,8 +91,7 @@ export default function App() {
         setErrorMsg('Permission to access location was denied');
         return;
       }
-
-      startTracking(employeeId);
+      startTracking();
     } catch (error) {
       console.error(error);
       setErrorMsg('Error starting location tracking.');
@@ -102,7 +102,6 @@ export default function App() {
     if (subscriber) {
       subscriber.remove();
       setSubscriber(null);
-      console.log('🛑 Tracking stopped.');
       setTrackingStarted(false);
       setLocation(null);
       setAddress(null);
@@ -112,10 +111,11 @@ export default function App() {
       setOutsideReported(false);
       setGapStartTime(null);
       setTrackingGapActive(false);
+      setHasSentLoginPing(false);
     }
   };
 
-  const startTracking = async (employeeId) => {
+  const startTracking = async () => {
     try {
       const sub = await Location.watchPositionAsync(
         {
@@ -145,22 +145,18 @@ export default function App() {
             setDistanceFromOffice(distance);
 
             if (distance > GEOFENCE_RADIUS_METERS) {
+              // Employee outside
               newStatus = "Employee is outside the workplace";
-              setLocationStatus(newStatus);
 
               if (isInsideOffice) {
-                console.log('🚪 Employee just left the office area!');
                 setIsInsideOffice(false);
                 setOutsideStartTime(new Date());
                 const outsideAddr = await getReadableAddress(loc.coords);
                 setLastKnownOutsideAddress(outsideAddr);
               } else {
                 if (outsideStartTime) {
-                  const diffMs = new Date() - outsideStartTime;
-                  const diffMinutes = diffMs / (60 * 1000);
-
+                  const diffMinutes = (new Date() - outsideStartTime) / (60 * 1000);
                   if (diffMinutes >= OUTSIDE_THRESHOLD_MINUTES && !outsideReported) {
-                    console.log('✅ Employee outside for > 2 min.');
                     await sendOutsideEvent(
                       employeeId,
                       employeeName,
@@ -172,12 +168,10 @@ export default function App() {
                 }
               }
             } else {
+              // Employee inside
               newStatus = "Employee is inside the workplace";
-              setLocationStatus(newStatus);
 
               if (!isInsideOffice) {
-                console.log('🏠 Employee just returned!');
-
                 const now = new Date();
                 if (outsideStartTime) {
                   const durationMs = now - outsideStartTime;
@@ -192,7 +186,6 @@ export default function App() {
                     lastKnownOutsideAddress
                   );
                 }
-
                 setOutsideStartTime(null);
                 setOutsideReported(false);
                 setIsInsideOffice(true);
@@ -203,36 +196,33 @@ export default function App() {
           const readableAddress = await getReadableAddress(loc.coords);
           setAddress(readableAddress);
 
-          sendLocationWithRetry(loc, readableAddress, newStatus, employeeId, employeeName);
+          // Only send the first ping while inside
+          if (isInsideOffice) {
+            if (!hasSentLoginPing) {
+              await sendLocationWithRetry(
+                loc,
+                readableAddress,
+                newStatus,
+                employeeId,
+                employeeName
+              );
+              setHasSentLoginPing(true);
+            }
+          }
         }
       );
 
       setSubscriber(sub);
       setTrackingStarted(true);
-      console.log('✅ Tracking started.');
     } catch (error) {
       console.error(error);
       setErrorMsg('Could not start tracking.');
     }
   };
 
-  const getReadableAddress = async (coords) => {
-    try {
-      const geocode = await Location.reverseGeocodeAsync(coords);
-      if (geocode.length > 0) {
-        const addr = geocode[0];
-        return `${addr.name || ''} ${addr.street || ''}, ${addr.city || ''}, ${addr.region || ''}, ${addr.country || ''}, ${addr.postalCode || ''}`;
-      }
-    } catch (error) {
-      console.error('❌ Error reverse geocoding:', error);
-    }
-    return 'Unknown address';
-  };
-
   const handleGapStart = () => {
     setGapStartTime(new Date());
     setTrackingGapActive(true);
-    console.log('🚫 GPS tracking gap started.');
   };
 
   const handleGapEnd = () => {
@@ -248,7 +238,6 @@ export default function App() {
     );
     setGapStartTime(null);
     setTrackingGapActive(false);
-    console.log('✅ GPS tracking gap ended.');
   };
 
   let text = trackingStarted
@@ -258,15 +247,10 @@ export default function App() {
     text = errorMsg;
   } else if (location) {
     text = `Lat: ${location.coords.latitude}\nLon: ${location.coords.longitude}`;
-    if (address) {
-      text += `\nYour Address: ${address}`;
-    }
-    if (distanceFromOffice !== null) {
+    if (address) text += `\nYour Address: ${address}`;
+    if (distanceFromOffice !== null)
       text += `\nDistance from office: ${distanceFromOffice.toFixed(2)} meters`;
-    }
-    if (locationStatus) {
-      text += `\nStatus: ${locationStatus}`;
-    }
+    if (locationStatus) text += `\nStatus: ${locationStatus}`;
   }
 
   return (
@@ -276,7 +260,6 @@ export default function App() {
           Office Address: {officeAddress}
         </Text>
       )}
-
       {!trackingStarted ? (
         <>
           <Text style={styles.text}>Enter your Employee ID:</Text>
@@ -325,153 +308,6 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-const sendLocationWithRetry = async (
-  location,
-  readableAddress,
-  newStatus,
-  employeeId,
-  employeeName,
-  retries = 3,
-  delayMs = 3000
-) => {
-  try {
-    const now = new Date();
-    const readableTime = now.toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-    });
-
-    const res = await fetch('http://192.168.100.4:3000/api/location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employeeId,
-        employeeName,
-        address: readableAddress,
-        timestamp: readableTime,
-        status: {
-          isInsideOffice: newStatus === "Employee is inside the workplace",
-          gps: 'on',
-          internet: 'on'
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Server responded with status ${res.status}`);
-    }
-
-    console.log('✅ Server JSON response:', await res.json());
-  } catch (error) {
-    console.error(`❌ Error sending location: ${error.message}`);
-    if (retries > 0) {
-      setTimeout(() => {
-        sendLocationWithRetry(
-          location,
-          readableAddress,
-          newStatus,
-          employeeId,
-          employeeName,
-          retries - 1,
-          delayMs
-        );
-      }, delayMs);
-    } else {
-      console.error('❌ All retry attempts failed.');
-    }
-  }
-};
-
-const sendEmployeeReturn = async (
-  employeeId,
-  employeeName,
-  exitTime,
-  reEntryTime,
-  durationMinutes,
-  outsideAddress
-) => {
-  try {
-    const res = await fetch('http://192.168.100.4:3000/api/employee-return', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employeeId,
-        employeeName,
-        exitTime: exitTime.toISOString(),
-        reEntryTime: reEntryTime.toISOString(),
-        durationMinutes,
-        outsideAddress,
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`Server error: ${res.status}`);
-    }
-    console.log('✅ Employee return sent!');
-  } catch (e) {
-    console.error('❌ Error sending return data:', e);
-  }
-};
-
-const sendOutsideEvent = async (
-  employeeId,
-  employeeName,
-  outsideStartTime,
-  outsideAddress
-) => {
-  try {
-    const res = await fetch('http://192.168.100.4:3000/api/location', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employeeId,
-        employeeName,
-        address: outsideAddress,
-        timestamp: outsideStartTime.toISOString(),
-        status: {
-          isInsideOffice: false,
-          gps: 'on',
-          internet: 'on',
-        },
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`Server error: ${res.status}`);
-    }
-    console.log('✅ Outside event logged.');
-  } catch (e) {
-    console.error('❌ Error sending outside event:', e);
-  }
-};
-
-const sendTrackingGap = async (
-  employeeId,
-  employeeName,
-  gapStartTime,
-  gapEndTime,
-  durationMinutes,
-  lastKnownAddress
-) => {
-  try {
-    const res = await fetch('http://192.168.100.4:3000/api/tracking-gap', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employeeId,
-        employeeName,
-        gapStartTime: gapStartTime.toISOString(),
-        gapEndTime: gapEndTime.toISOString(),
-        durationMinutes,
-        lastKnownAddress,
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`Server error: ${res.status}`);
-    }
-    console.log('✅ Tracking gap saved!');
-  } catch (e) {
-    console.error('❌ Error saving tracking gap:', e);
-  }
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -495,3 +331,5 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
 });
+
+// Keep your sendLocationWithRetry, sendOutsideEvent, sendEmployeeReturn, sendTrackingGap functions unchanged
