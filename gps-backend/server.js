@@ -17,6 +17,18 @@ db.getConnection()
 app.use(cors());
 app.use(express.json());
 
+function toMySQLTimestamp(raw) {
+  if (!raw) return null;
+  // Try to parse the incoming string
+  const d = new Date(raw);
+  if (isNaN(d)) {
+    console.error('❌ Invalid timestamp string received:', raw);
+    return null;
+  }
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+
 // ✅ Save normal location ping
 app.post('/api/location', async (req, res) => {
   const { employeeId, employeeName, address, timestamp, status } = req.body;
@@ -33,7 +45,7 @@ app.post('/api/location', async (req, res) => {
         status?.isInsideOffice || false,
         status?.gps || 'off',
         status?.internet || 'off',
-        timestamp
+        toMySQLTimestamp(timestamp)
       ]
     );
 
@@ -58,7 +70,7 @@ app.post('/api/location/outside', async (req, res) => {
       [
         employeeId,
         employeeName,
-        outsideStartTime,
+        toMySQLTimestamp(outsideStartTime),
         outsideAddress
       ]
     );
@@ -84,8 +96,8 @@ app.post('/api/employee-return', async (req, res) => {
       [
         employeeId,
         employeeName,
-        exitTime,
-        reEntryTime,
+        toMySQLTimestamp(exitTime),
+        toMySQLTimestamp(reEntryTime),
         durationMinutes,
         outsideAddress
       ]
@@ -112,8 +124,8 @@ app.post('/api/tracking-gap', async (req, res) => {
       [
         employeeId,
         employeeName,
-        gapStartTime,
-        gapEndTime,
+        toMySQLTimestamp(gapStartTime),
+        toMySQLTimestamp(gapEndTime),
         durationMinutes,
         lastKnownAddress
       ]

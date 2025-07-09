@@ -34,7 +34,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('http://192.168.100.4:3000/api/office-location');
+        const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/office-location');
         const data = await res.json();
 
         console.log('🏢 Dynamic office location fetched:', data);
@@ -340,7 +340,7 @@ const sendLocationWithRetry = async (
       timeZone: 'Asia/Kolkata',
     });
 
-    const res = await fetch('http://192.168.100.4:3000/api/location', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/location', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -390,7 +390,7 @@ const sendEmployeeReturn = async (
   outsideAddress
 ) => {
   try {
-    const res = await fetch('http://192.168.100.4:3000/api/employee-return', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/employee-return', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -418,7 +418,7 @@ const sendOutsideEvent = async (
   outsideAddress
 ) => {
   try {
-    const res = await fetch('http://192.168.100.4:3000/api/location', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/location', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -451,7 +451,7 @@ const sendTrackingGap = async (
   lastKnownAddress
 ) => {
   try {
-    const res = await fetch('http://192.168.100.4:3000/api/tracking-gap', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/tracking-gap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
