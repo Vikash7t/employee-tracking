@@ -9,12 +9,16 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/netinfo": "11.4.1",
     "dot-env": "^0.0.1",
     "expo": "53.0.19",
+    "expo-background-task": "~0.2.8",
     "expo-location": "~18.1.6",
+    "expo-network": "~7.1.5",
     "expo-status-bar": "~2.2.3",
     "expo-task-manager": "~13.1.6",
+    "luxon": "^3.7.1",
     "mysql2": "^3.14.1",
     "react": "19.0.0",
     "react-native": "0.79.5"
@@ -22,5 +26,6 @@
   "devDependencies": {
     "@babel/core": "^7.20.0"
   },
+
   "private": true
 }

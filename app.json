@@ -13,15 +13,30 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We need your location to track attendance.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location even in the background to ensure accurate attendance.",
+        "UIBackgroundModes": ["location", "fetch"]
+      }
     },
     "android": {
+      "package": "com.vikasht5.gpstracking",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.vikasht5.gpstracking"
+      "foregroundService": {
+        "notificationTitle": "GPS Tracking",
+        "notificationBody": "Location tracking is active"
+      },
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +45,11 @@
       "eas": {
         "projectId": "56c4fa87-891b-4dd4-ab3b-7587074dd2ad"
       }
-    }
+    },
+    "plugins": [
+      "expo-background-fetch",
+      "expo-location",
+      "expo-task-manager"
+    ]
   }
 }

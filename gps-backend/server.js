@@ -4,7 +4,6 @@ const app = express();
 const PORT = 3000;
 
 const db = require('./db');
-
 db.getConnection()
   .then(conn => {
     console.log('✅ Successfully connected to MySQL!');
@@ -14,42 +13,59 @@ db.getConnection()
     console.error('❌ Error connecting to MySQL:', err);
   });
 
+
 app.use(cors());
 app.use(express.json());
 
-function toMySQLTimestamp(raw) {
-  if (!raw) return null;
-  // Try to parse the incoming string
-  const d = new Date(raw);
-  if (isNaN(d)) {
-    console.error('❌ Invalid timestamp string received:', raw);
-    return null;
-  }
-  return d.toISOString().slice(0, 19).replace('T', ' ');
-}
+// ✅ Save location to MySQL
 
-
-// ✅ Save normal location ping
 app.post('/api/location', async (req, res) => {
-  const { employeeId, employeeName, address, timestamp, status } = req.body;
+  const { employeeId, employeeName, address, employeeTimestamp, status } = req.body;
 
   try {
+   // ✅ Generate UTC timestamp as fallback
+    const date = new Date();
+
+    const yyyy = date.getUTCFullYear();
+    const MM = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    const hh = String(date.getUTCHours()).padStart(2, '0');
+    const mm = String(date.getUTCMinutes()).padStart(2, '0');
+    const ss = String(date.getUTCSeconds()).padStart(2, '0');
+
+    const generatedTimestamp = `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
+
+    // ✅ Use timestamp from frontend if provided, else generate new UTC timestamp
+    const mysqlTimestamp = employeeTimestamp || generatedTimestamp;
+
+
     await db.query(
       `INSERT INTO employee_locations 
-        (employee_id, employee_name, address, is_inside_office, gps_status, internet_status, timestamp) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (employee_id, employee_name, address, timestamp, status)
+       VALUES (?, ?, ?, ?, ?)`,
       [
-        employeeId,
-        employeeName,
+        employeeId.trim(),
+        employeeName.trim(),
         address,
-        status?.isInsideOffice || false,
-        status?.gps || 'off',
-        status?.internet || 'off',
-        toMySQLTimestamp(timestamp)
+        mysqlTimestamp,
+        status
       ]
     );
+   
+const { DateTime } = require('luxon');
 
-    console.log('✅ Location saved to MySQL:', req.body);
+const ist = DateTime.fromSQL(mysqlTimestamp, { zone: 'utc' }).setZone('Asia/Kolkata');
+
+
+
+    console.log('✅ Location saved to MySQL:', {
+      employeeId,
+      employeeName,
+      address,
+      mysqlTimestamp,
+      istTimestamp: ist.toFormat('yyyy-MM-dd HH:mm:ss'),
+      status,
+    });
 
     res.json({ message: 'Location saved successfully!' });
   } catch (error) {
@@ -58,97 +74,90 @@ app.post('/api/location', async (req, res) => {
   }
 });
 
-// ✅ Save outside-for-2-min event
-app.post('/api/location/outside', async (req, res) => {
-  const { employeeId, employeeName, outsideStartTime, outsideAddress } = req.body;
+
+
+
+
+
+const { DateTime } = require('luxon');
+
+function convertToIST(mysqlTimestamp) {
+  if (!mysqlTimestamp) return null;
+  return DateTime
+    .fromSQL(mysqlTimestamp, { zone: 'utc' })
+    .setZone('Asia/Kolkata')
+    .toFormat('yyyy-MM-dd HH:mm:ss');
+}
+
+
+
+app.post('/api/track-gap', async (req, res) => {
+  const { 
+    employeeId, 
+    employeeName, 
+    gapType, 
+    startTimestamp, 
+    endTimestamp, 
+    durationMinutes, 
+    lastKnownAddress 
+  } = req.body;
 
   try {
     await db.query(
-      `INSERT INTO outside_events
-        (employee_id, employee_name, outside_start_time, outside_address)
-      VALUES (?, ?, ?, ?)`,
+      `INSERT INTO connectivity_gaps
+         (employee_id, employee_name, gap_type, start_timestamp, end_timestamp, duration_minutes, last_known_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [
-        employeeId,
-        employeeName,
-        toMySQLTimestamp(outsideStartTime),
-        outsideAddress
-      ]
-    );
-
-    console.log('✅ Outside event saved:', req.body);
-
-    res.json({ message: 'Outside event saved!' });
-  } catch (error) {
-    console.error('❌ Error saving outside event:', error);
-    res.status(500).json({ message: 'DB error' });
-  }
-});
-
-// ✅ Save return event when user comes back inside
-app.post('/api/employee-return', async (req, res) => {
-  const { employeeId, employeeName, exitTime, reEntryTime, durationMinutes, outsideAddress } = req.body;
-
-  try {
-    await db.query(
-      `INSERT INTO employee_returns
-        (employee_id, employee_name, exit_time, re_entry_time, duration_minutes, outside_address)
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        employeeId,
-        employeeName,
-        toMySQLTimestamp(exitTime),
-        toMySQLTimestamp(reEntryTime),
-        durationMinutes,
-        outsideAddress
-      ]
-    );
-
-    console.log('✅ Return event saved:', req.body);
-
-    res.json({ message: 'Employee return recorded.' });
-  } catch (error) {
-    console.error('❌ Error saving return event:', error);
-    res.status(500).json({ message: 'DB error' });
-  }
-});
-
-// ✅ Save tracking gap
-app.post('/api/tracking-gap', async (req, res) => {
-  const { employeeId, employeeName, gapStartTime, gapEndTime, durationMinutes, lastKnownAddress } = req.body;
-
-  try {
-    await db.query(
-      `INSERT INTO tracking_gaps
-        (employee_id, employee_name, gap_start_time, gap_end_time, duration_minutes, last_known_address)
-      VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        employeeId,
-        employeeName,
-        toMySQLTimestamp(gapStartTime),
-        toMySQLTimestamp(gapEndTime),
+        employeeId.trim(),
+        employeeName.trim(),
+        gapType,
+        startTimestamp,
+        endTimestamp,
         durationMinutes,
         lastKnownAddress
       ]
     );
 
-    console.log('✅ Tracking gap saved:', req.body);
+  
 
-    res.json({ message: 'Tracking gap saved.' });
+ const startIST = convertToIST(startTimestamp);
+    const endIST = convertToIST(endTimestamp);
+
+    console.log('✅ Gap saved:', {
+      employeeId,
+      employeeName,
+      gapType,
+      startTimestamp,
+      startTimestampIST: startIST,
+      endTimestamp,
+      endTimestampIST: endIST,
+      durationMinutes,
+      lastKnownAddress
+    });
+
+
+
+    
+    res.json({ message: 'Gap saved successfully!' });
   } catch (error) {
-    console.error('❌ Error saving tracking gap:', error);
+    console.error('❌ Error saving gap:', error);
     res.status(500).json({ message: 'DB error' });
   }
 });
 
-// ✅ Serve dynamic office coordinates
+
+
+
+
+// ✅ Serve office coordinates
 app.get('/api/office-location', (req, res) => {
   res.json({
-    latitude: 12.9857270,
-    longitude: 77.5979289
+    latitude: 12.9857016,
+    longitude: 77.5979309
   });
 });
 
-// ✅ Fetch all locations (for future dashboard)
+// ✅ Fetch all location entries
 app.get('/api/location', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM employee_locations');
@@ -161,5 +170,4 @@ app.get('/api/location', async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running at http://0.0.0.0:${PORT}`);
-});
-
+}); 
