@@ -1,6 +1,6 @@
 {
   "cli": {
-    "appVersionSource": "appVersion"
+    "appVersionSource": "local"
   },
   "build": {
     "production": {
