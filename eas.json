@@ -4,10 +4,6 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
-      },
-      "ios": {
-        "buildType": "release",
-        "simulator": false
       }
     }
   }
