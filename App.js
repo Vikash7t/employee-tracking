@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Network from 'expo-network';
-import { DateTime } from "luxon";
+
 
 
 const GEOFENCE_RADIUS_METERS = 30;
@@ -53,7 +53,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             bgLeftOfficeTimeout = setTimeout(async () => {
               await sendLocationWithRetry(
                 location,
-                await getReadableAddress(location),
+                await getReadableAddress(location,3,2000),
                 "Left workplace (>2 min outside)",
                 storedEmployeeId,
                 storedEmployeeName
@@ -73,7 +73,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             console.log("🏠 [BG] Returned to workplace after leaving.");
             await sendLocationWithRetry(
               location,
-              await getReadableAddress(location),
+              await getReadableAddress(location,3,2000),
               "Returned to workplace",
               storedEmployeeId,
               storedEmployeeName
@@ -93,7 +93,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 
 export default function App() {
   const gpsGapStartRef = useRef(null);
-  const InternetGapStartRef = useRef(null);
+  const internetGapStartRef = useRef(null);
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const [address, setAddress] = useState(null);
@@ -108,7 +108,7 @@ export default function App() {
   const employeeIdRef = useRef(null);
   const employeeNameRef = useRef(null);
   const [gpsLastAddress, setGpsLastAddress] = useState(null);
-  const [InternetLastAddress, setInternetLastAddress] = useState(null);
+  const [internetLastAddress, setInternetLastAddress] = useState(null);
   const lastGpsStatus = useRef(null); // Tracks the previous GPS ON/OFF state
   const lastInternetStatus = useRef(null); // tracks the previous gps on/off state 
 
@@ -128,41 +128,7 @@ async function clearGpsGapSession() {
   await AsyncStorage.removeItem('pendingGPSGap');
 }
 
-// ✅ Send GPS gap to backend
-async function sendGpsGapToBackend(start, end, lastKnownAddress, durationMinutes = null) {
-  try {
-    const storedEmployeeId = employeeIdRef.current;
-    const storedEmployeeName = employeeNameRef.current;
 
-    const body = {
-      employeeId: storedEmployeeId,
-      employeeName: storedEmployeeName,
-      gapType: 'GPS',
-      startTimestamp: start?.toISOString() || null,
-      endTimestamp: end?.toISOString() || null,
-      durationMinutes,
-      lastKnownAddress
-    };
-
-    console.log("➡️ Sending GPS gap to backend:", body);
-
-    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/track-gap', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-      console.error("❌ Failed to send GPS gap:", res.status);
-    } else {
-      console.log("✅ GPS gap saved successfully.");
-    }
-  } catch (error) {
-    console.error("❌ Error sending GPS gap:", error);
-  }
-}
 
 
 
@@ -180,43 +146,6 @@ async function saveInternetGapSession(startTime, lastAddress) {
 // ✅ Remove Internet gap session
 async function clearInternetGapSession() {
   await AsyncStorage.removeItem('pendingInternetGap');
-}
-
-
-// ✅ Send INTERNET gap to backend
-async function sendInternetGapToBackend(start, end, lastKnownAddress, durationMinutes = null) {
-  try {
-    const storedEmployeeId = employeeIdRef.current;
-    const storedEmployeeName = employeeNameRef.current;
-
-    const body = {
-      employeeId: storedEmployeeId,
-      employeeName: storedEmployeeName,
-      gapType: 'INTERNET',
-      startTimestamp: start?.toISOString() || null,
-      endTimestamp: end?.toISOString() || null,
-      durationMinutes,
-      lastKnownAddress
-    };
-
-    console.log("➡️ Sending INTERNET gap to backend:", body);
-
-    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/track-gap', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-      console.error("❌ Failed to send INTERNET gap:", res.status);
-    } else {
-      console.log("✅ INTERNET gap saved successfully.");
-    }
-  } catch (error) {
-    console.error("❌ Error sending INTERNET gap:", error);
-  }
 }
 
 
@@ -313,12 +242,12 @@ async function checkConnectivityGaps() {
   // ✅ Handle GPS OFF
  if (!gpsOn) {
   if (!gpsGapStartRef.current) {
-    console.log("🚫 GPS turned off.");
+    
     const now = Date.now();
     
  // fallback address logic
  const savedLastAddress = await AsyncStorage.getItem('gpsLastKnownAddress');
-    const lastAddress = gpsLastAddress || address || "Unknown";
+    const lastAddress = gpsLastAddress || savedLastAddress  || address || "Unknown";
 
     gpsGapStartRef.current = now;
 
@@ -368,15 +297,15 @@ if (netOn !== lastInternetStatus.current) {
 
 // ✅ Handle Internet OFF
   if (!netOn) {
-  if (!InternetGapStartRef.current) {
+  if (!internetGapStartRef.current) {
     console.log("🚫 Internet disconnected.");
     const now = Date.now();
 
     // fallback address logic
-    const savedLastAddress = await AsyncStorage.getItem('gpsLastKnownAddress');
+    const savedLastAddress = await AsyncStorage.getItem('internetLastKnownAddress');
     const lastAddress = gpsLastAddress || savedLastAddress || address || "Unknown";
 
-    InternetGapStartRef.current = now;
+    internetGapStartRef.current = now;
 
     console.log("💡 Saving Internet gap session with address:", lastAddress);
 
@@ -388,8 +317,8 @@ if (netOn !== lastInternetStatus.current) {
 
 
   else {
-  if (InternetGapStartRef.current) {
-    const start = new Date(InternetGapStartRef.current);
+  if (internetGapStartRef.current) {
+    const start = new Date(internetGapStartRef.current);
     const end = new Date();
 
     const durationMinutes = Math.round((end - start) / (1000 * 60));
@@ -401,12 +330,12 @@ if (netOn !== lastInternetStatus.current) {
       
       start,
       end,
-      InternetLastAddress,
+      internetLastAddress,
       durationMinutes
       
     );
 
-    InternetGapStartRef.current = null;             // ✅ CLEAR IT!
+    internetGapStartRef.current = null;             // ✅ CLEAR IT!
     setInternetLastAddress(null);
     await clearInternetGapSession();           // ✅ Also clear AsyncStorage
                                    }
@@ -448,7 +377,7 @@ if (netOn !== lastInternetStatus.current) {
     durationMinutes );
 
   await clearInternetGapSession();
-  InternetGapStartRef.current = null;
+  internetGapStartRef.current = null;
   console.log('✅ pendingInternetGap cleared from AsyncStorage');}
 
 }
@@ -485,7 +414,7 @@ if (netOn !== lastInternetStatus.current) {
         accuracy: Location.Accuracy.Highest,
       });
 
-      const readableAddress = await getReadableAddress(loc);
+      const readableAddress = await getReadableAddress(loc,3,2000);
       setGpsLastAddress(readableAddress);
       setInternetLastAddress(readableAddress);
 
@@ -605,7 +534,7 @@ async function sendInternetGapToBackend(start, end, lastKnownAddress, durationMi
 
     console.log("➡️ Sending INTERNET gap to backend:", body);
 
-    const res = await fetch('http://192.168.100.4:3000/api/track-gap', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/track-gap', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -652,7 +581,8 @@ async function sendInternetGapToBackend(start, end, lastKnownAddress, durationMi
       }
       bgHasLeftOffice = false;
 
-      await AsyncStorage.multiRemove(['employeeId', 'employeeName', 'officeCoords', 'gpsLastKnownAddress','internetLastKnownAddress',]);
+      await AsyncStorage.multiRemove(['employeeId', 'employeeName', 'officeCoords', 'gpsLastKnownAddress','internetLastKnownAddress','pendingGPSGap',
+  'pendingInternetGap']);
       console.log('✅ Cleared AsyncStorage.');
 
       let loc = location;
@@ -662,7 +592,7 @@ async function sendInternetGapToBackend(start, end, lastKnownAddress, durationMi
         });
       }
 
-      const readableAddress = await getReadableAddress(loc);
+      const readableAddress = await getReadableAddress(loc,3,2000);
 
       let newStatus = "Logout";
 
@@ -718,6 +648,10 @@ if (newCoords) {
 
 
   const startTracking = async () => {
+     if (trackingStarted) {
+    console.log("⚠️ Tracking already started. Skipping.");
+    return;
+  }
     try {
       const sub = await Location.watchPositionAsync(
         {
@@ -727,10 +661,11 @@ if (newCoords) {
         async (loc) => {
           setLocation(loc);
 
-          const readableAddress = await getReadableAddress(loc);
+          const readableAddress = await getReadableAddress(loc,3,2000);
           setAddress(readableAddress);
            setGpsLastAddress(readableAddress);
            await AsyncStorage.setItem('gpsLastKnownAddress', readableAddress); // ✅ Save to persistent storage
+
           setInternetLastAddress(readableAddress);
           await AsyncStorage.setItem('internetLastKnownAddress',readableAddress);
 
@@ -787,15 +722,20 @@ if (newCoords) {
             value={employeeName}
             onChangeText={setEmployeeName}
           />
+           <View style={{ marginBottom: 16 }}>
           <Button
   title={officeCoords ? "Login" : "Loading office location..."}
   onPress={handleLogin}
   disabled={!officeCoords}
 />
+</View>
+
+<View   style={{ padding: 16 }}>
 <Button
   title="Test GPS / Internet Status"
   onPress={testConnectivity}
 />
+</View>
         </>
       ) : (
         <>
@@ -893,7 +833,7 @@ const ss = String(utcDate.getUTCSeconds()).padStart(2, '0');
 const employeeTimestamp = `${yyyy}-${MM}-${dd} ${hh}:${mm}:${ss}`;
 
 
-    const res = await fetch('http://192.168.100.4:3000/api/location', {
+    const res = await fetch('https://employee-tracking-ph3i.onrender.com/api/location', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
