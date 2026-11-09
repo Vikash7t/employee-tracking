@@ -46,6 +46,8 @@ export interface GeoPoint {
   longitude: number;
 }
 
+export type GeoPolygonCoordinates = number[][][]; // GeoJSON Polygon: [ [ [lng, lat], ... ] ]
+
 export interface WorksiteDto {
   id: string;
   organizationId: string;
@@ -54,6 +56,7 @@ export interface WorksiteDto {
   latitude: number;
   longitude: number;
   radiusMeters: number;
+  polygonCoordinates?: GeoPolygonCoordinates | null;
   gracePeriodSeconds: number;
   isActive: boolean;
   createdAt: string;
@@ -67,7 +70,25 @@ export interface CreateWorksiteInput {
   latitude: number;
   longitude: number;
   radiusMeters?: number;
+  polygonCoordinates?: GeoPolygonCoordinates | null;
   gracePeriodSeconds?: number;
+}
+
+export interface UpdateWorksiteInput {
+  name?: string;
+  worksiteType?: WorksiteType;
+  latitude?: number;
+  longitude?: number;
+  radiusMeters?: number;
+  polygonCoordinates?: GeoPolygonCoordinates | null;
+  gracePeriodSeconds?: number;
+  isActive?: boolean;
+}
+
+export interface VerifyPresenceInput {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
 }
 
 export type GeofencePresenceOutcome = 'INSIDE' | 'OUTSIDE' | 'UNCERTAIN';

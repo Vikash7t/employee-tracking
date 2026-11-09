@@ -1,5 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
+import * as express from 'express';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { AppModule } from './app.module';
@@ -13,6 +16,28 @@ dotenv.config();
 async function bootstrap(): Promise<void> {
   const logger = new AppLogger();
   const app = await NestFactory.create(AppModule, { logger });
+
+  // OWASP API8: Security Misconfiguration - Helmet headers
+  app.use(
+    helmet({
+      frameguard: { action: 'deny' },
+      contentSecurityPolicy: false, // Swagger UI compatibility
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
+  // OWASP API4: Payload size limiting
+  app.use(express.json({ limit: '100kb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+
+  // OWASP API3: BOPLA / Mass Assignment prevention via ValidationPipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
