@@ -122,7 +122,7 @@ curl -X POST http://localhost:4000/api/v1/worksites/<WORKSITE_ID>/verify-presenc
 | **Phase 0** | Legacy Audit & Containment | ✅ Complete | Zero-downtime dual-mode API key gating on `gps-backend` ([`6a5d7d1`](https://github.com/Vikash7t/employee-tracking/commit/6a5d7d1)) |
 | **Phase 1** | Monorepo & PostGIS Engine | ✅ Merged | NestJS 11, Next.js 15, PostGIS 3.7.0, `@employee-tracking/contracts` ([PR #5](https://github.com/Vikash7t/employee-tracking/pull/5)) |
 | **Phase 1.5** | Foundation Stabilization | ✅ Merged | 3-zone GPS accuracy model, REST semantics, Master Roadmap ([`b070c88`](https://github.com/Vikash7t/employee-tracking/commit/b070c88)) |
-| **Phase 2** | Decoupled Identity & Better Auth | 🔄 Up Next | Multi-tenant memberships, role-based access, device hardware binding |
+| **Phase 2** | Decoupled Identity & Better Auth | ✅ Complete | Multi-tenant memberships, role-based access, single-use invitations, device binding |
 | **Phase 3** | Worksite Geofence Engine | 📋 Planned | Circular & polygon geofences, PostGIS polygon point-in-polygon queries |
 | **Phase 4** | Mobile Foreground Service | 📋 Planned | Android sticky notification, battery-efficient adaptive GPS polling |
 | **Phase 5** | Offline SQLite Event Journal | 📋 Planned | Client-side queue, exponential backoff, sequence integrity engine |

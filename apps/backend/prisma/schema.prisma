@@ -9,11 +9,11 @@ generator client {
   previewFeatures = ["postgresqlExtensions"]
 }
 
-enum Role {
-  SUPER_ADMIN
+enum MembershipRole {
+  OWNER
   ORG_ADMIN
   MANAGER
-  EMPLOYEE
+  MEMBER
 }
 
 enum WorksiteType {
@@ -21,70 +21,189 @@ enum WorksiteType {
   POLYGON
 }
 
-model Organization {
-  id        String     @id @default(uuid()) @db.Uuid
-  name      String     @db.VarChar(150)
-  slug      String     @unique @db.VarChar(50)
-  timezone  String     @default("Asia/Kolkata") @db.VarChar(50)
-  isActive  Boolean    @default(true) @map("is_active")
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+model User {
+  id                  String                   @id @default(uuid()) @db.Uuid
+  email               String                   @unique @db.VarChar(150)
+  fullName            String                   @map("full_name") @db.VarChar(150)
+  passwordHash        String?                  @map("password_hash") @db.VarChar(255)
+  pinHash             String?                  @map("pin_hash") @db.VarChar(255)
+  isActive            Boolean                  @default(true) @map("is_active")
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  worksites Worksite[]
-  employees Employee[]
+  sessions            Session[]
+  memberships         OrganizationMembership[]
+  employeeProfiles    EmployeeProfile[]
+  createdInvitations  EmployeeInvitation[]     @relation("CreatedInvitations")
+
+  @@map("users")
+}
+
+model Session {
+  id                   String       @id @default(uuid()) @db.Uuid
+  userId               String       @map("user_id") @db.Uuid
+  activeOrganizationId String       @map("active_organization_id") @db.Uuid
+  tokenHash            String       @unique @map("token_hash") @db.VarChar(64)
+  ipAddress            String?      @map("ip_address") @db.VarChar(45)
+  userAgent            String?      @map("user_agent") @db.VarChar(255)
+  expiresAt            DateTime     @map("expires_at") @db.Timestamptz(6)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization         Organization @relation(fields: [activeOrganizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([activeOrganizationId])
+  @@map("sessions")
+}
+
+model Organization {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  name                 String                   @db.VarChar(150)
+  slug                 String                   @unique @db.VarChar(50)
+  timezone             String                   @default("Asia/Kolkata") @db.VarChar(50)
+  isActive             Boolean                  @default(true) @map("is_active")
+  createdAt            DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  worksites            Worksite[]
+  memberships          OrganizationMembership[]
+  employeeProfiles     EmployeeProfile[]
+  sessions             Session[]
+  invitations          EmployeeInvitation[]
 
   @@map("organizations")
 }
 
-model Worksite {
-  id                 String       @id @default(uuid()) @db.Uuid
-  organizationId     String       @map("organization_id") @db.Uuid
-  name               String       @db.VarChar(150)
-  worksiteType       WorksiteType @default(CIRCULAR) @map("worksite_type")
-  latitude           Decimal      @db.Decimal(10, 8)
-  longitude          Decimal      @db.Decimal(11, 8)
-  radiusMeters       Int          @default(50) @map("radius_meters")
-  gracePeriodSeconds Int          @default(120) @map("grace_period_seconds")
-  isActive           Boolean      @default(true) @map("is_active")
-  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+model OrganizationMembership {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  organizationId       String                   @map("organization_id") @db.Uuid
+  userId               String                   @map("user_id") @db.Uuid
+  role                 MembershipRole           @default(MEMBER)
+  isActive             Boolean                  @default(true) @map("is_active")
+  createdAt            DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization         Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                 User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  worksiteScopes       ManagerWorksiteScope[]
+  departmentScopes     ManagerDepartmentScope[]
+  employeeProfile      EmployeeProfile?
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_memberships")
+}
+
+model ManagerWorksiteScope {
+  id           String                 @id @default(uuid()) @db.Uuid
+  membershipId String                 @map("membership_id") @db.Uuid
+  worksiteId   String                 @map("worksite_id") @db.Uuid
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership   OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  worksite     Worksite               @relation(fields: [worksiteId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, worksiteId])
+  @@map("manager_worksite_scopes")
+}
+
+model ManagerDepartmentScope {
+  id           String                 @id @default(uuid()) @db.Uuid
+  membershipId String                 @map("membership_id") @db.Uuid
+  department   String                 @db.VarChar(100)
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership   OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, department])
+  @@map("manager_department_scopes")
+}
+
+model Worksite {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  organizationId       String                 @map("organization_id") @db.Uuid
+  name                 String                 @db.VarChar(150)
+  worksiteType         WorksiteType           @default(CIRCULAR) @map("worksite_type")
+  latitude             Decimal                @db.Decimal(10, 8)
+  longitude            Decimal                @db.Decimal(11, 8)
+  radiusMeters         Int                    @default(50) @map("radius_meters")
+  gracePeriodSeconds   Int                    @default(120) @map("grace_period_seconds")
+  isActive             Boolean                @default(true) @map("is_active")
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  managerScopes        ManagerWorksiteScope[]
+  primaryEmployees     EmployeeProfile[]
 
   @@index([organizationId])
   @@map("worksites")
 }
 
-model Employee {
-  id             String          @id @default(uuid()) @db.Uuid
-  organizationId String          @map("organization_id") @db.Uuid
-  employeeCode   String          @map("employee_code") @db.VarChar(50)
-  fullName       String          @map("full_name") @db.VarChar(150)
-  email          String          @unique @db.VarChar(150)
-  role           Role            @default(EMPLOYEE)
-  isActive       Boolean         @default(true) @map("is_active")
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+model EmployeeProfile {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  organizationId       String                  @map("organization_id") @db.Uuid
+  userId               String?                 @map("user_id") @db.Uuid
+  membershipId         String?                 @unique @map("membership_id") @db.Uuid
+  employeeCode         String                  @map("employee_code") @db.VarChar(50)
+  fullName             String                  @map("full_name") @db.VarChar(150)
+  department           String?                 @db.VarChar(100)
+  primaryWorksiteId    String?                 @map("primary_worksite_id") @db.Uuid
+  failedAttempts       Int                     @default(0) @map("failed_attempts")
+  lockoutUntil         DateTime?               @map("lockout_until") @db.Timestamptz(6)
+  isActive             Boolean                 @default(true) @map("is_active")
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  devices        DeviceBinding[]
+  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user                 User?                   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  membership           OrganizationMembership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+  primaryWorksite      Worksite?               @relation(fields: [primaryWorksiteId], references: [id], onDelete: SetNull)
+  devices              DeviceBinding[]
+  invitations          EmployeeInvitation[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
-  @@map("employees")
+  @@index([userId])
+  @@map("employee_profiles")
 }
 
 model DeviceBinding {
-  id           String    @id @default(uuid()) @db.Uuid
-  employeeId   String    @map("employee_id") @db.Uuid
-  deviceId     String    @map("device_id") @db.VarChar(128)
-  deviceModel  String?   @map("device_model") @db.VarChar(100)
-  osVersion    String?   @map("os_version") @db.VarChar(50)
-  isTrusted    Boolean   @default(true) @map("is_trusted")
-  registeredAt DateTime  @default(now()) @map("registered_at") @db.Timestamptz(6)
+  id                 String          @id @default(uuid()) @db.Uuid
+  employeeProfileId  String          @map("employee_profile_id") @db.Uuid
+  deviceId           String          @map("device_id") @db.VarChar(128)
+  deviceSecretHash   String          @map("device_secret_hash") @db.VarChar(64)
+  deviceModel        String?         @map("device_model") @db.VarChar(100)
+  osVersion          String?         @map("os_version") @db.VarChar(50)
+  isTrusted          Boolean         @default(true) @map("is_trusted")
+  registeredAt       DateTime        @default(now()) @map("registered_at") @db.Timestamptz(6)
+  lastSeenAt         DateTime        @default(now()) @map("last_seen_at") @db.Timestamptz(6)
 
-  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeProfile    EmployeeProfile @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
 
-  @@unique([employeeId, deviceId])
+  @@unique([employeeProfileId, deviceId])
+  @@index([employeeProfileId])
   @@map("device_bindings")
+}
+
+model EmployeeInvitation {
+  id                 String          @id @default(uuid()) @db.Uuid
+  organizationId     String          @map("organization_id") @db.Uuid
+  employeeProfileId  String          @map("employee_profile_id") @db.Uuid
+  email              String          @db.VarChar(150)
+  tokenHash          String          @unique @map("token_hash") @db.VarChar(64)
+  expiresAt          DateTime        @map("expires_at") @db.Timestamptz(6)
+  usedAt             DateTime?       @map("used_at") @db.Timestamptz(6)
+  createdByUserId    String          @map("created_by_user_id") @db.Uuid
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeProfile    EmployeeProfile @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+  createdByUser      User            @relation("CreatedInvitations", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("employee_invitations")
 }
