@@ -3,142 +3,207 @@
 export const dynamic = 'force-dynamic';
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchOrganizations, fetchWorksites } from '../lib/api-client';
-import { Building2, MapPin, CheckCircle2, ShieldCheck, Navigation } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  fetchOrganizations,
+  fetchWorksites,
+  fetchAttendanceHistory,
+} from '../lib/api-client';
+import { useAppStore } from '../store/use-app-store';
+import dynamicImport from 'next/dynamic';
+import { GeofenceEditor } from '../components/map/GeofenceEditor';
+import { AttendanceTimeline } from '../components/attendance/AttendanceTimeline';
+import { SpatialTester } from '../components/spatial-tester';
+import {
+  Building2,
+  MapPin,
+  CheckCircle2,
+  ShieldCheck,
+  Navigation,
+  Clock,
+  Users,
+} from 'lucide-react';
 
-export default function OverviewPage() {
+const MapLibreViewer = dynamicImport(
+  () => import('../components/map/MapLibreViewer').then((mod) => mod.MapLibreViewer),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-80 bg-slate-100 animate-pulse rounded-xl flex items-center justify-center text-xs text-slate-400">
+        Loading MapLibre spatial engine...
+      </div>
+    ),
+  },
+);
+
+export default function AdminDashboardPage() {
+  const { activeTab, activeToken } = useAppStore();
+  const queryClient = useQueryClient();
+
   const { data: orgs = [], isLoading: isLoadingOrgs } = useQuery({
-    queryKey: ['organizations'],
-    queryFn: fetchOrganizations,
+    queryKey: ['organizations', activeToken],
+    queryFn: () => fetchOrganizations(activeToken),
   });
 
   const { data: worksites = [], isLoading: isLoadingSites } = useQuery({
-    queryKey: ['worksites'],
-    queryFn: fetchWorksites,
+    queryKey: ['worksites', activeToken],
+    queryFn: () => fetchWorksites(activeToken),
   });
 
-  // PostGIS spatial tester state
-  const [testLat, setTestLat] = useState('12.9857016');
-  const [testLng, setTestLng] = useState('77.5979309');
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const { data: attendanceSessions = [], isLoading: isLoadingAttendance } = useQuery({
+    queryKey: ['attendanceHistory', activeToken],
+    queryFn: () => fetchAttendanceHistory(activeToken, 30),
+    refetchInterval: 15000, // 15-second controlled polling
+  });
 
-  const handleTestPresence = () => {
-    const lat = parseFloat(testLat);
-    const lng = parseFloat(testLng);
-    if (isNaN(lat) || isNaN(lng)) return;
-
-    // Default sample office (Bengaluru headquarters)
-    const officeLat = 12.9857016;
-    const officeLng = 77.5979309;
-
-    // Haversine preview
-    const R = 6371000;
-    const toRad = (x: number) => (x * Math.PI) / 180;
-    const dLat = toRad(officeLat - lat);
-    const dLon = toRad(officeLng - lng);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat)) * Math.cos(toRad(officeLat)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    setTestResult(
-      `Computed Distance: ${dist.toFixed(2)}m (${dist <= 50 ? '✅ INSIDE 50m Geofence' : '❌ OUTSIDE Geofence'})`
-    );
-  };
+  const primaryOrgId = orgs[0]?.id || '';
+  const activeEmployeesCount = attendanceSessions.filter((s) => s.status === 'ACTIVE').length;
 
   return (
     <div className="space-y-6 max-w-6xl">
-      {/* Welcome Banner */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Platform Foundation Live</h2>
-          <p className="text-xs text-slate-500 mt-1">
-            PostgreSQL 18 + PostGIS 3.7.0 database foundation connected via Prisma ORM.
-          </p>
+      {/* Tab: Live Map Geospatial Command Center */}
+      {activeTab === 'live-map' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Live Geospatial Command Center</h2>
+              <p className="text-xs text-slate-500">
+                Vector geofences and active workforce location observations rendered via MapLibre GL.
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-semibold">
+              Live Polling: 15s
+            </span>
+          </div>
+          <MapLibreViewer
+            worksites={worksites}
+            activeSessions={attendanceSessions.filter((s) => s.status === 'ACTIVE')}
+            height="620px"
+          />
         </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" /> Phase 1 Verified
-        </div>
-      </div>
+      )}
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Active Organizations</span>
-            <Building2 className="w-4 h-4 text-blue-600" />
+      {/* Tab: Worksites & Geofence Editor */}
+      {activeTab === 'worksites' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Worksite Geofence Management</h2>
+              <p className="text-xs text-slate-500">
+                Configure circular and polygon PostGIS boundaries with custom exit grace periods.
+              </p>
+            </div>
+            {primaryOrgId && (
+              <GeofenceEditor
+                organizationId={primaryOrgId}
+                onWorksiteCreated={() => queryClient.invalidateQueries({ queryKey: ['worksites'] })}
+              />
+            )}
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">
-            {isLoadingOrgs ? '...' : orgs.length}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Multi-tenant tenants</p>
-        </div>
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Configured Worksites</span>
-            <MapPin className="w-4 h-4 text-emerald-600" />
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3">Worksite Name</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Coordinates</th>
+                  <th className="px-4 py-3">Radius / Extent</th>
+                  <th className="px-4 py-3">Exit Grace</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {worksites.map((w) => (
+                  <tr key={w.id} className="hover:bg-slate-50/50">
+                    <td className="px-4 py-3 font-semibold text-slate-900">{w.name}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                        {w.worksiteType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono">{w.latitude.toFixed(4)}, {w.longitude.toFixed(4)}</td>
+                    <td className="px-4 py-3">{w.radiusMeters}m</td>
+                    <td className="px-4 py-3">{w.gracePeriodSeconds}s</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">
-            {isLoadingSites ? '...' : worksites.length}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Geofenced field locations</p>
         </div>
+      )}
 
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-500">Geospatial Engine</span>
-            <CheckCircle2 className="w-4 h-4 text-blue-600" />
-          </div>
-          <div className="text-2xl font-bold text-slate-900 mt-2">PostGIS 3.7</div>
-          <p className="text-[11px] text-emerald-600 mt-1 font-medium">Sub-meter R-Tree Spatial</p>
-        </div>
-      </div>
-
-      {/* Spatial Verification Quick-Tester */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center gap-2">
-          <Navigation className="w-4 h-4 text-blue-600" />
-          <h3 className="font-semibold text-sm text-slate-900">PostGIS Spatial Verification Tester</h3>
-        </div>
-        <p className="text-xs text-slate-500">
-          Test real-time coordinates against the primary headquarters geofence (Radius: 50m).
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Tab: Attendance Sessions & Timeline */}
+      {activeTab === 'attendance' && (
+        <div className="space-y-4">
           <div>
-            <label className="block text-[11px] font-medium text-slate-600 mb-1">User Latitude</label>
-            <input
-              type="text"
-              value={testLat}
-              onChange={(e) => setTestLat(e.target.value)}
-              className="w-full text-xs font-mono border border-slate-200 rounded-lg px-3 py-2"
-            />
+            <h2 className="text-lg font-bold text-slate-900">Attendance Session Inspector</h2>
+            <p className="text-xs text-slate-500">
+              Deterministic attendance sessions with granular inside, outside, and break interval breakdowns.
+            </p>
           </div>
-          <div>
-            <label className="block text-[11px] font-medium text-slate-600 mb-1">User Longitude</label>
-            <input
-              type="text"
-              value={testLng}
-              onChange={(e) => setTestLng(e.target.value)}
-              className="w-full text-xs font-mono border border-slate-200 rounded-lg px-3 py-2"
-            />
-          </div>
-          <div className="flex items-end">
-            <button
-              onClick={handleTestPresence}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors"
-            >
-              Verify Presence
-            </button>
-          </div>
+          <AttendanceTimeline sessions={attendanceSessions} />
         </div>
-        {testResult && (
-          <div className="text-xs font-mono font-medium p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-800">
-            {testResult}
+      )}
+
+      {/* Tab: Platform Overview (Default) */}
+      {(activeTab === 'overview' || activeTab === 'organizations' || activeTab === 'telemetry') && (
+        <>
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Enterprise Operations Portal</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Next.js 15 App Router + MapLibre vector geofencing + PostGIS 3.7 attendance engine.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Operational
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                <span>Active Tenancies</span>
+                <Building2 className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 mt-2">{isLoadingOrgs ? '...' : orgs.length}</div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                <span>Geofenced Worksites</span>
+                <MapPin className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 mt-2">{isLoadingSites ? '...' : worksites.length}</div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                <span>Active On-Duty Shifts</span>
+                <Users className="w-4 h-4 text-purple-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 mt-2">{isLoadingAttendance ? '...' : activeEmployeesCount}</div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                <span>Spatial Precision</span>
+                <CheckCircle2 className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="text-2xl font-bold text-slate-900 mt-2">PostGIS 3.7</div>
+            </div>
+          </div>
+
+          {/* Quick Map Preview */}
+          <div className="space-y-2">
+            <h3 className="font-semibold text-xs text-slate-700 uppercase tracking-wider">Geospatial Preview</h3>
+            <MapLibreViewer worksites={worksites} height="360px" />
+          </div>
+
+          {/* Spatial Tester */}
+          <SpatialTester />
+        </>
+      )}
     </div>
   );
 }
