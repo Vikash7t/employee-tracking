@@ -10,17 +10,22 @@ import {
   LayoutDashboard,
   Users,
   Menu,
+  Navigation,
+  Clock,
 } from 'lucide-react';
+import { NavigationTab } from '../store/use-app-store';
 
 export function NavigationShell({ children }: { children: React.ReactNode }) {
   const { activeTab, setActiveTab, isSidebarOpen, toggleSidebar } = useAppStore();
 
-  const navItems = [
+  const navItems: { id: NavigationTab; label: string; icon: any }[] = [
     { id: 'overview', label: 'Platform Overview', icon: LayoutDashboard },
-    { id: 'organizations', label: 'Organizations', icon: Building2 },
+    { id: 'live-map', label: 'Live Geospatial Map', icon: Navigation },
     { id: 'worksites', label: 'Worksites & Geofences', icon: MapPin },
+    { id: 'attendance', label: 'Attendance & Timeline', icon: Clock },
+    { id: 'organizations', label: 'Organizations', icon: Building2 },
     { id: 'telemetry', label: 'Security & Telemetry', icon: Shield },
-  ] as const;
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
