@@ -1,0 +1,90 @@
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+enum Role {
+  SUPER_ADMIN
+  ORG_ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum WorksiteType {
+  CIRCULAR
+  POLYGON
+}
+
+model Organization {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String     @db.VarChar(150)
+  slug      String     @unique @db.VarChar(50)
+  timezone  String     @default("Asia/Kolkata") @db.VarChar(50)
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  worksites Worksite[]
+  employees Employee[]
+
+  @@map("organizations")
+}
+
+model Worksite {
+  id                 String       @id @default(uuid()) @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  name               String       @db.VarChar(150)
+  worksiteType       WorksiteType @default(CIRCULAR) @map("worksite_type")
+  latitude           Decimal      @db.Decimal(10, 8)
+  longitude          Decimal      @db.Decimal(11, 8)
+  radiusMeters       Int          @default(50) @map("radius_meters")
+  gracePeriodSeconds Int          @default(120) @map("grace_period_seconds")
+  isActive           Boolean      @default(true) @map("is_active")
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("worksites")
+}
+
+model Employee {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  employeeCode   String          @map("employee_code") @db.VarChar(50)
+  fullName       String          @map("full_name") @db.VarChar(150)
+  email          String          @unique @db.VarChar(150)
+  role           Role            @default(EMPLOYEE)
+  isActive       Boolean         @default(true) @map("is_active")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  devices        DeviceBinding[]
+
+  @@unique([organizationId, employeeCode])
+  @@index([organizationId])
+  @@map("employees")
+}
+
+model DeviceBinding {
+  id           String    @id @default(uuid()) @db.Uuid
+  employeeId   String    @map("employee_id") @db.Uuid
+  deviceId     String    @map("device_id") @db.VarChar(128)
+  deviceModel  String?   @map("device_model") @db.VarChar(100)
+  osVersion    String?   @map("os_version") @db.VarChar(50)
+  isTrusted    Boolean   @default(true) @map("is_trusted")
+  registeredAt DateTime  @default(now()) @map("registered_at") @db.Timestamptz(6)
+
+  employee     Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, deviceId])
+  @@map("device_bindings")
+}
