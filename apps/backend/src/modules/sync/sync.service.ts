@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { AttendanceService } from '../attendance/attendance.service';
 import {
   SyncBatchInput,
   SyncBatchResponse,
@@ -9,7 +10,10 @@ import { AuthenticatedUser } from '../../common/guards/current-user.decorator';
 
 @Injectable()
 export class SyncService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly attendanceService: AttendanceService,
+  ) {}
 
   async ingestEvents(
     input: SyncBatchInput,
@@ -80,6 +84,12 @@ export class SyncService {
         data: validEventsToInsert,
         skipDuplicates: true, // Native PostgreSQL ON CONFLICT DO NOTHING
       });
+
+      // Pass valid chronological events through Attendance State Machine
+      const sortedEvents = [...input.events]
+        .filter((e) => acknowledgedEventIds.includes(e.eventId))
+        .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+      await this.attendanceService.processIngestedEvents(sortedEvents);
     }
 
     return {

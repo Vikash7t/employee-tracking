@@ -72,6 +72,7 @@ model Organization {
   sessions             Session[]
   invitations          EmployeeInvitation[]
   attendanceEvents     AttendanceEvent[]
+  attendanceSessions   AttendanceSession[]
 
   @@map("organizations")
 }
@@ -139,6 +140,7 @@ model Worksite {
   organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   managerScopes        ManagerWorksiteScope[]
   primaryEmployees     EmployeeProfile[]
+  attendanceSessions   AttendanceSession[]
 
   @@index([organizationId])
   @@map("worksites")
@@ -166,6 +168,7 @@ model EmployeeProfile {
   devices              DeviceBinding[]
   invitations          EmployeeInvitation[]
   attendanceEvents     AttendanceEvent[]
+  attendanceSessions   AttendanceSession[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
@@ -232,5 +235,53 @@ model AttendanceEvent {
   @@index([organizationId, employeeProfileId, sequenceNumber])
   @@index([organizationId, clientTimestamp])
   @@map("attendance_events")
+}
+
+model AttendanceSession {
+  id                      String               @id @default(uuid()) @db.Uuid
+  organizationId          String               @map("organization_id") @db.Uuid
+  employeeProfileId       String               @map("employee_profile_id") @db.Uuid
+  worksiteId              String               @map("worksite_id") @db.Uuid
+  status                  String               @default("ACTIVE") @db.VarChar(30)
+  presenceStatus          String               @default("INSIDE") @map("presence_status") @db.VarChar(30)
+  reviewStatus            String               @default("NOT_REQUIRED") @map("review_status") @db.VarChar(30)
+  clockInAt               DateTime             @map("clock_in_at") @db.Timestamptz(6)
+  clockOutAt              DateTime?            @map("clock_out_at") @db.Timestamptz(6)
+  exitPendingSince        DateTime?            @map("exit_pending_since") @db.Timestamptz(6)
+  exitGraceExpiresAt      DateTime?            @map("exit_grace_expires_at") @db.Timestamptz(6)
+  insideDurationSeconds   Int                  @default(0) @map("inside_duration_seconds")
+  outsideDurationSeconds  Int                  @default(0) @map("outside_duration_seconds")
+  breakDurationSeconds    Int                  @default(0) @map("break_duration_seconds")
+  autoClockedOut          Boolean              @default(false) @map("auto_clocked_out")
+  lastEvaluatedAt         DateTime             @default(now()) @map("last_evaluated_at") @db.Timestamptz(6)
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeProfile         EmployeeProfile      @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+  worksite                Worksite             @relation(fields: [worksiteId], references: [id], onDelete: Cascade)
+  intervals               AttendanceInterval[]
+
+  @@index([organizationId])
+  @@index([employeeProfileId])
+  @@index([worksiteId])
+  @@index([status])
+  @@index([organizationId, employeeProfileId, status])
+  @@map("attendance_sessions")
+}
+
+model AttendanceInterval {
+  id                   String             @id @default(uuid()) @db.Uuid
+  attendanceSessionId  String             @map("attendance_session_id") @db.Uuid
+  intervalType         String             @map("interval_type") @db.VarChar(30)
+  startedAt            DateTime           @map("started_at") @db.Timestamptz(6)
+  endedAt              DateTime?          @map("ended_at") @db.Timestamptz(6)
+  durationSeconds      Int?               @map("duration_seconds")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  attendanceSession    AttendanceSession  @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceSessionId])
+  @@map("attendance_intervals")
 }
 

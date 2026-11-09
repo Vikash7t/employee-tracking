@@ -8,6 +8,7 @@ import { WorksitesModule } from './modules/worksites/worksites.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { SyncModule } from './modules/sync/sync.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { SyncModule } from './modules/sync/sync.module';
     AuthModule,
     EmployeesModule,
     SyncModule,
+    AttendanceModule,
   ],
   providers: [
     {
