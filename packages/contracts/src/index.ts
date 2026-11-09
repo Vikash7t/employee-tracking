@@ -20,7 +20,7 @@ export interface HealthCheckResponse {
 }
 
 // 2. Roles & Permissions
-export type UserRole = 'SUPER_ADMIN' | 'ORG_ADMIN' | 'MANAGER' | 'EMPLOYEE';
+export type UserRole = 'PLATFORM_ADMIN' | 'ORG_OWNER' | 'ORG_ADMIN' | 'MANAGER' | 'EMPLOYEE';
 
 export type WorksiteType = 'CIRCULAR' | 'POLYGON';
 
@@ -71,38 +71,35 @@ export interface CreateWorksiteInput {
   gracePeriodSeconds?: number;
 }
 
+export type GeofencePresenceOutcome = 'INSIDE' | 'OUTSIDE' | 'UNCERTAIN';
+
 export interface SpatialDistanceCheck {
   worksiteId: string;
   distanceMeters: number;
+  outcome: GeofencePresenceOutcome;
   isInside: boolean;
   accuracyMeters?: number;
+  isAccuracyAcceptable: boolean;
 }
 
-// 5. Employee DTOs
+// 5. Employee & Identity DTOs
 export interface EmployeeDto {
   id: string;
   organizationId: string;
+  userId: string;
   employeeCode: string;
   fullName: string;
-  email: string;
-  role: UserRole;
+  department?: string;
+  primaryWorksiteId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateEmployeeInput {
-  organizationId: string;
-  employeeCode: string;
-  fullName: string;
-  email: string;
-  role?: UserRole;
-}
-
 // 6. Device Registration DTOs
 export interface DeviceBindingDto {
   id: string;
-  employeeId: string;
+  employeeProfileId: string;
   deviceId: string;
   deviceModel?: string;
   osVersion?: string;

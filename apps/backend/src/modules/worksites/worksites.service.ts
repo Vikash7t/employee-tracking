@@ -5,6 +5,7 @@ import {
   CreateWorksiteInput,
   WorksiteDto,
   SpatialDistanceCheck,
+  GeofencePresenceOutcome,
 } from '@employee-tracking/contracts';
 
 @Injectable()
@@ -46,10 +47,15 @@ export class WorksitesService {
     return this.mapToDto(created);
   }
 
+  /**
+   * Evaluates presence using PostGIS spatial spheroid distance combined with
+   * physical GPS horizontal accuracy uncertainty filtering (Master Plan Section 7.5).
+   */
   async verifyPresence(
     worksiteId: string,
     userLat: number,
     userLng: number,
+    accuracyMeters: number = 10,
   ): Promise<SpatialDistanceCheck> {
     const worksite = await this.findById(worksiteId);
 
@@ -61,10 +67,33 @@ export class WorksitesService {
       worksite.radiusMeters,
     );
 
+    const distance = Math.round(check.distance_meters * 100) / 100;
+    const radius = worksite.radiusMeters;
+    const isAccuracyAcceptable = accuracyMeters <= Math.max(radius, 50);
+
+    let outcome: GeofencePresenceOutcome = 'UNCERTAIN';
+    let isInside = false;
+
+    // Accuracy-aware evaluation
+    if (distance + accuracyMeters <= radius) {
+      outcome = 'INSIDE';
+      isInside = true;
+    } else if (distance - accuracyMeters > radius) {
+      outcome = 'OUTSIDE';
+      isInside = false;
+    } else {
+      outcome = 'UNCERTAIN';
+      // Fallback: If point is mathematically inside within tolerance
+      isInside = check.is_within;
+    }
+
     return {
       worksiteId,
-      distanceMeters: Math.round(check.distance_meters * 100) / 100,
-      isInside: check.is_within,
+      distanceMeters: distance,
+      outcome,
+      isInside,
+      accuracyMeters,
+      isAccuracyAcceptable,
     };
   }
 
