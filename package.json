@@ -2,17 +2,33 @@
   "name": "gps-tracking",
   "version": "1.0.0",
   "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "dev:backend": "npm run start:dev --workspace=@employee-tracking/backend",
+    "dev:admin": "npm run dev --workspace=@employee-tracking/admin",
+    "build:backend": "npm run build --workspace=@employee-tracking/backend",
+    "build:admin": "npm run build --workspace=@employee-tracking/admin",
+    "prisma:generate": "npm run prisma:generate --workspace=@employee-tracking/backend",
+    "prisma:migrate": "npm run prisma:migrate --workspace=@employee-tracking/backend"
+  },
+  "overrides": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/netinfo": "11.4.1",
     "dot-env": "^0.0.1",
     "expo": "53.0.19",
+    "expo-background-fetch": "~13.1.6",
     "expo-background-task": "~0.2.8",
     "expo-location": "~18.1.6",
     "expo-network": "~7.1.5",
@@ -21,11 +37,10 @@
     "luxon": "^3.7.1",
     "mysql2": "^3.14.1",
     "react": "19.0.0",
-    "react-native": "0.79.5",
-    "expo-background-fetch": "~13.1.6"
+    "react-dom": "19.0.0",
+    "react-native": "0.79.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
-  },
-  "private": true
+  }
 }
