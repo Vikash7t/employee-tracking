@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "gps-tracking",
-    "slug": "gps-tracking",
+    "name": "GeoTrack Enterprise",
+    "slug": "geotrack-enterprise",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,31 +11,36 @@
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
-     
     },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "We need your location to track attendance.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location even in the background to ensure accurate attendance.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "NSLocationWhenInUseUsageDescription": "We need your location to verify attendance within assigned worksite geofences.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "GeoTrack collects location data even when closed or not in use to verify worksite arrival, departure, and continuous shift compliance.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {
-      "package": "com.vikasht5.gpstracking",
+      "package": "com.geotrack.enterprise",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "foregroundService": {
-        "notificationTitle": "GPS Tracking",
-        "notificationBody": "Location tracking is active"
+        "notificationTitle": "GeoTrack Attendance Service",
+        "notificationBody": "Monitoring worksite attendance geofence"
       },
       "edgeToEdgeEnabled": true
     },
@@ -49,8 +54,16 @@
     },
     "plugins": [
       "expo-background-fetch",
-      "expo-location",
-      "expo-task-manager"
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow GeoTrack to verify worksite geofences continuously during active work shifts.",
+          "isAndroidForegroundServiceEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
+      "expo-task-manager",
+      "expo-secure-store"
     ]
   }
 }
