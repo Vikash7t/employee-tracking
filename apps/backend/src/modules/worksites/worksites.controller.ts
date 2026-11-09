@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { WorksitesService } from './worksites.service';
 import {
@@ -35,12 +35,18 @@ export class WorksitesController {
   }
 
   @Post(':id/verify-presence')
-  @ApiOperation({ summary: 'Verify user coordinates against worksite geofence using PostGIS' })
-  @ApiResponse({ status: 200, description: 'Distance check and inside/outside determination' })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify user coordinates against worksite geofence with GPS accuracy model' })
+  @ApiResponse({ status: 200, description: 'Distance check and inside/outside/uncertain determination' })
   async verifyPresence(
     @Param('id') id: string,
-    @Body() coords: { latitude: number; longitude: number },
+    @Body() body: { latitude: number; longitude: number; accuracyMeters?: number },
   ): Promise<SpatialDistanceCheck> {
-    return this.worksitesService.verifyPresence(id, coords.latitude, coords.longitude);
+    return this.worksitesService.verifyPresence(
+      id,
+      body.latitude,
+      body.longitude,
+      body.accuracyMeters,
+    );
   }
 }

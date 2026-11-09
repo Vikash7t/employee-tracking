@@ -1,7 +1,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 
-const server = spawn('node', ['apps/backend/dist/src/main.js'], {
+const server = spawn('node', ['apps/backend/dist/main.js'], {
   stdio: ['ignore', 'pipe', 'pipe'],
   shell: true,
 });
@@ -36,18 +36,19 @@ async function run() {
     const sitesJson = await sitesRes.json();
     console.log('Status:', sitesRes.status, JSON.stringify(sitesJson, null, 2));
 
-    // 4. PostGIS Presence Verification
-    console.log('\n--- 4. Testing POST /api/v1/worksites/:id/verify-presence (PostGIS ST_Distance) ---');
+    // 4. PostGIS Presence Verification (Semantics: HTTP 200 OK, not 201 Created)
+    console.log('\n--- 4. Testing POST /api/v1/worksites/:id/verify-presence (PostGIS ST_Distance + GPS Accuracy Model) ---');
     const verifyRes = await fetch(
       'http://localhost:4000/api/v1/worksites/00000000-0000-0000-0000-000000000001/verify-presence',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: 12.9859, longitude: 77.5982 }),
+        body: JSON.stringify({ latitude: 12.9859, longitude: 77.5982, accuracyMeters: 10 }),
       }
     );
     const verifyJson = await verifyRes.json();
-    console.log('Status:', verifyRes.status, JSON.stringify(verifyJson, null, 2));
+    console.log('Status:', verifyRes.status, '(Expected 200 OK)');
+    console.log('Payload:', JSON.stringify(verifyJson, null, 2));
 
     // 5. Swagger Docs
     console.log('\n--- 5. Testing GET /api/docs ---');

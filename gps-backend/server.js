@@ -75,14 +75,21 @@ function requireAdminKey(req, res, next) {
 
 function requireClientApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'];
-  // In development, if header is missing, log a warning; require if set
-  if (process.env.NODE_ENV === 'production') {
-    if (!apiKey || apiKey !== CLIENT_API_KEY) {
-      return res.status(401).json({ error: 'Unauthorized: Valid x-api-key header required.' });
+  const enforceKey = process.env.ENFORCE_CLIENT_API_KEY === 'true';
+
+  if (apiKey) {
+    if (apiKey !== CLIENT_API_KEY) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid x-api-key.' });
     }
-  } else if (apiKey && apiKey !== CLIENT_API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid x-api-key.' });
+    return next();
   }
+
+  // Grace period for existing installed field APKs:
+  if (enforceKey) {
+    return res.status(401).json({ error: 'Unauthorized: Missing x-api-key header.' });
+  }
+
+  console.warn(`⚠️ [LEGACY_INGESTION] Received write from ${req.ip} without x-api-key`);
   next();
 }
 
