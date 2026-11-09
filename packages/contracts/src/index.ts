@@ -252,3 +252,64 @@ export interface SyncBatchResponse {
   }[];
 }
 
+// 9. Attendance Session & State Machine DTOs
+export type AttendanceSessionStatus = 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
+export type WorkplacePresenceStatus = 'INSIDE' | 'EXIT_PENDING' | 'OUTSIDE' | 'UNCERTAIN';
+export type AttendanceReviewStatus = 'NOT_REQUIRED' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED';
+export type AttendanceIntervalType = 'INSIDE' | 'OUTSIDE' | 'BREAK';
+
+export interface AttendanceIntervalDto {
+  id: string;
+  attendanceSessionId: string;
+  intervalType: AttendanceIntervalType;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds?: number | null;
+}
+
+export interface AttendanceSessionDto {
+  id: string;
+  organizationId: string;
+  employeeProfileId: string;
+  worksiteId: string;
+  status: AttendanceSessionStatus;
+  presenceStatus: WorkplacePresenceStatus;
+  reviewStatus: AttendanceReviewStatus;
+  clockInAt: string;
+  clockOutAt?: string | null;
+  exitPendingSince?: string | null;
+  exitGraceExpiresAt?: string | null;
+  insideDurationSeconds: number;
+  outsideDurationSeconds: number;
+  breakDurationSeconds: number;
+  autoClockedOut: boolean;
+  intervals?: AttendanceIntervalDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PunchInInput {
+  worksiteId: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  clientTimestamp?: string;
+  elapsedRealtimeMs?: number;
+  isMocked?: boolean;
+}
+
+export interface PunchOutInput {
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  clientTimestamp?: string;
+  elapsedRealtimeMs?: number;
+  isMocked?: boolean;
+}
+
+export interface PunchResultDto {
+  success: boolean;
+  session?: AttendanceSessionDto;
+  reason?: string;
+}
+
