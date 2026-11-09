@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { SyncModule } from './modules/sync/sync.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
+import { ShiftsModule } from './modules/shifts/shifts.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
     EmployeesModule,
     SyncModule,
     AttendanceModule,
+    ShiftsModule,
   ],
   providers: [
     {

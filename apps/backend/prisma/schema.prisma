@@ -73,6 +73,8 @@ model Organization {
   invitations          EmployeeInvitation[]
   attendanceEvents     AttendanceEvent[]
   attendanceSessions   AttendanceSession[]
+  shiftTemplates       ShiftTemplate[]
+  shiftAssignments     ShiftAssignment[]
 
   @@map("organizations")
 }
@@ -169,6 +171,7 @@ model EmployeeProfile {
   invitations          EmployeeInvitation[]
   attendanceEvents     AttendanceEvent[]
   attendanceSessions   AttendanceSession[]
+  shiftAssignments     ShiftAssignment[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
@@ -253,6 +256,11 @@ model AttendanceSession {
   outsideDurationSeconds  Int                  @default(0) @map("outside_duration_seconds")
   breakDurationSeconds    Int                  @default(0) @map("break_duration_seconds")
   autoClockedOut          Boolean              @default(false) @map("auto_clocked_out")
+  shiftTemplateId         String?              @map("shift_template_id") @db.Uuid
+  isLate                  Boolean              @default(false) @map("is_late")
+  isEarlyDeparture        Boolean              @default(false) @map("is_early_departure")
+  scheduledStart          DateTime?            @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd            DateTime?            @map("scheduled_end") @db.Timestamptz(6)
   lastEvaluatedAt         DateTime             @default(now()) @map("last_evaluated_at") @db.Timestamptz(6)
   createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -260,11 +268,13 @@ model AttendanceSession {
   organization            Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   employeeProfile         EmployeeProfile      @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
   worksite                Worksite             @relation(fields: [worksiteId], references: [id], onDelete: Cascade)
+  shiftTemplate           ShiftTemplate?       @relation(fields: [shiftTemplateId], references: [id], onDelete: SetNull)
   intervals               AttendanceInterval[]
 
   @@index([organizationId])
   @@index([employeeProfileId])
   @@index([worksiteId])
+  @@index([shiftTemplateId])
   @@index([status])
   @@index([organizationId, employeeProfileId, status])
   @@map("attendance_sessions")
@@ -283,5 +293,50 @@ model AttendanceInterval {
 
   @@index([attendanceSessionId])
   @@map("attendance_intervals")
+}
+
+model ShiftTemplate {
+  id                    String             @id @default(uuid()) @db.Uuid
+  organizationId        String             @map("organization_id") @db.Uuid
+  name                  String             @db.VarChar(100)
+  startTime             String             @map("start_time") @db.VarChar(5) // "09:00"
+  endTime               String             @map("end_time") @db.VarChar(5)   // "18:00"
+  isOvernight           Boolean            @default(false) @map("is_overnight")
+  lateArrivalGraceMin   Int                @default(15) @map("late_arrival_grace_min")
+  earlyExitGraceMin     Int                @default(10) @map("early_exit_grace_min")
+  breakAllowanceMin     Int                @default(60) @map("break_allowance_min")
+  isFlexible            Boolean            @default(false) @map("is_flexible")
+  isActive              Boolean            @default(true) @map("is_active")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization          Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments           ShiftAssignment[]
+  attendanceSessions    AttendanceSession[]
+
+  @@index([organizationId])
+  @@map("shift_templates")
+}
+
+model ShiftAssignment {
+  id                    String             @id @default(uuid()) @db.Uuid
+  organizationId        String             @map("organization_id") @db.Uuid
+  employeeProfileId     String             @map("employee_profile_id") @db.Uuid
+  shiftTemplateId       String             @map("shift_template_id") @db.Uuid
+  workDays              Int[]              @map("work_days") // [1, 2, 3, 4, 5] (Mon=1, Tue=2, ..., Sun=7)
+  effectiveFrom         DateTime           @map("effective_from") @db.Date
+  effectiveTo           DateTime?          @map("effective_to") @db.Date
+  isActive              Boolean            @default(true) @map("is_active")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization          Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeProfile       EmployeeProfile    @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+  shiftTemplate         ShiftTemplate      @relation(fields: [shiftTemplateId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([employeeProfileId])
+  @@index([shiftTemplateId])
+  @@map("shift_assignments")
 }
 
