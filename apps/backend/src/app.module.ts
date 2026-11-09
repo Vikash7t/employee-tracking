@@ -7,6 +7,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { WorksitesModule } from './modules/worksites/worksites.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EmployeesModule } from './modules/employees/employees.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { EmployeesModule } from './modules/employees/employees.module';
     WorksitesModule,
     AuthModule,
     EmployeesModule,
+    SyncModule,
   ],
   providers: [
     {

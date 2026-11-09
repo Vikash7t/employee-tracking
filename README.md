@@ -125,7 +125,7 @@ curl -X POST http://localhost:4000/api/v1/worksites/<WORKSITE_ID>/verify-presenc
 | **Phase 2** | Decoupled Identity & Better Auth | ✅ Complete | Multi-tenant memberships, role-based access, single-use invitations, device binding |
 | **Phase 3** | Worksite Geofence Engine | ✅ Complete | Circular & polygon geofencing, PostGIS point-in-polygon, OWASP Top 10 security |
 | **Phase 4** | Mobile Foreground Service | ✅ Complete | Staged permissions, adaptive battery polling, fake GPS detection, Android 14+ |
-| **Phase 5** | Offline SQLite Event Journal | 📋 Planned | Client-side queue, exponential backoff, sequence integrity engine |
+| **Phase 5** | Offline SQLite Event Journal | ✅ Complete | Client-side SQLite queue, full jitter exponential backoff, idempotent batch sync, replay protection |
 | **Phase 6** | Attendance State Machine | 📋 Planned | Deterministic session lifecycle, auto-punch out, exception auditing |
 | **Phase 7** | MapLibre Live Command Center | 📋 Planned | Vector geofence rendering, employee markers, cluster inspection |
 | **Phase 8** | Shift & Break Orchestration | 📋 Planned | Shift templates, grace periods, overnight shift handling |

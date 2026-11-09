@@ -91,4 +91,22 @@ export const ApiClient = {
 
     return res.json();
   },
+
+  async syncBatch(events: any[]): Promise<{ acknowledgedEventIds: string[]; rejectedEvents: any[] }> {
+    const token = await StorageService.getSessionToken();
+    const res = await fetch(`${getBaseUrl()}/api/v1/sync/events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ events }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Sync batch failed with status ${res.status}`);
+    }
+
+    return res.json();
+  },
 };

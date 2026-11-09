@@ -63,7 +63,8 @@
         }
       ],
       "expo-task-manager",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite"
     ]
   }
 }

@@ -71,6 +71,7 @@ model Organization {
   employeeProfiles     EmployeeProfile[]
   sessions             Session[]
   invitations          EmployeeInvitation[]
+  attendanceEvents     AttendanceEvent[]
 
   @@map("organizations")
 }
@@ -164,6 +165,7 @@ model EmployeeProfile {
   primaryWorksite      Worksite?               @relation(fields: [primaryWorksiteId], references: [id], onDelete: SetNull)
   devices              DeviceBinding[]
   invitations          EmployeeInvitation[]
+  attendanceEvents     AttendanceEvent[]
 
   @@unique([organizationId, employeeCode])
   @@index([organizationId])
@@ -208,3 +210,27 @@ model EmployeeInvitation {
   @@index([email])
   @@map("employee_invitations")
 }
+
+model AttendanceEvent {
+  id                 String          @id @default(uuid()) @db.Uuid
+  organizationId     String          @map("organization_id") @db.Uuid
+  employeeProfileId  String          @map("employee_profile_id") @db.Uuid
+  eventType          String          @map("event_type") @db.VarChar(50)
+  sequenceNumber     Int             @map("sequence_number")
+  clientTimestamp    DateTime        @map("client_timestamp") @db.Timestamptz(6)
+  elapsedRealtimeMs  BigInt?         @map("elapsed_realtime_ms")
+  serverReceivedAt   DateTime        @default(now()) @map("server_received_at") @db.Timestamptz(6)
+  payload            Json
+  signature          String?         @db.VarChar(64)
+  isReconciled       Boolean         @default(false) @map("is_reconciled")
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeProfile    EmployeeProfile @relation(fields: [employeeProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, employeeProfileId, sequenceNumber])
+  @@index([organizationId, clientTimestamp])
+  @@map("attendance_events")
+}
+
