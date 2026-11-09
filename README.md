@@ -128,7 +128,7 @@ curl -X POST http://localhost:4000/api/v1/worksites/<WORKSITE_ID>/verify-presenc
 | **Phase 5** | Offline SQLite Event Journal | ✅ Complete | Client-side SQLite queue, full jitter exponential backoff, idempotent batch sync, replay protection |
 | **Phase 6** | Attendance State Machine | ✅ Complete | Deterministic session lifecycle, crash-resilient exit grace periods, attendance interval tracking, BOLA protection |
 | **Phase 7** | MapLibre Live Command Center | ✅ Complete | MapLibre vector geofencing, live workforce command center, circular/polygon geofence editor, granular attendance timeline |
-| **Phase 8** | Shift & Break Orchestration | 📋 Planned | Shift templates, grace periods, overnight shift handling |
+| **Phase 8** | Shift & Break Orchestration | ✅ Complete | Shift templates, overnight shift handling, schedule conflict prevention, lateness & variance tracking |
 | **Phase 9** | Audited Reports & CSV Stream | 📋 Planned | Timezone-aware timesheets, formula injection protection, exports |
 | **Phase 10** | Enterprise Hardening & CI/CD | 📋 Planned | GitHub Actions, migration backups, Docker packaging, OWASP audits |
 

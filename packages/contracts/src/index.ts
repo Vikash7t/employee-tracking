@@ -283,6 +283,11 @@ export interface AttendanceSessionDto {
   outsideDurationSeconds: number;
   breakDurationSeconds: number;
   autoClockedOut: boolean;
+  shiftTemplateId?: string | null;
+  isLate?: boolean;
+  isEarlyDeparture?: boolean;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
   intervals?: AttendanceIntervalDto[];
   createdAt: string;
   updatedAt: string;
@@ -311,5 +316,64 @@ export interface PunchResultDto {
   success: boolean;
   session?: AttendanceSessionDto;
   reason?: string;
+}
+
+// 10. Shift & Break Orchestration DTOs
+export interface ShiftTemplateDto {
+  id: string;
+  organizationId: string;
+  name: string;
+  startTime: string; // "HH:mm"
+  endTime: string;   // "HH:mm"
+  isOvernight: boolean;
+  lateArrivalGraceMin: number;
+  earlyExitGraceMin: number;
+  breakAllowanceMin: number;
+  isFlexible: boolean;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateShiftTemplateInput {
+  organizationId: string;
+  name: string;
+  startTime: string;
+  endTime: string;
+  lateArrivalGraceMin?: number;
+  earlyExitGraceMin?: number;
+  breakAllowanceMin?: number;
+  isFlexible?: boolean;
+}
+
+export interface ShiftAssignmentDto {
+  id: string;
+  organizationId: string;
+  employeeProfileId: string;
+  shiftTemplateId: string;
+  workDays: number[]; // [1..7]
+  effectiveFrom: string;
+  effectiveTo?: string | null;
+  isActive: boolean;
+  shiftTemplate?: ShiftTemplateDto;
+  createdAt: string;
+}
+
+export interface AssignShiftInput {
+  organizationId: string;
+  employeeProfileId: string;
+  shiftTemplateId: string;
+  workDays: number[];
+  effectiveFrom: string;
+  effectiveTo?: string;
+}
+
+export interface AttendanceVarianceDto {
+  sessionId: string;
+  isLate: boolean;
+  latenessMinutes: number;
+  isEarlyDeparture: boolean;
+  earlyDepartureMinutes: number;
+  scheduledDurationMinutes: number;
+  actualDurationMinutes: number;
 }
 

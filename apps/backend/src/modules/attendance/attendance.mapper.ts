@@ -17,6 +17,11 @@ export function mapAttendanceSessionToDto(session: any): AttendanceSessionDto {
     outsideDurationSeconds: session.outsideDurationSeconds,
     breakDurationSeconds: session.breakDurationSeconds,
     autoClockedOut: session.autoClockedOut,
+    shiftTemplateId: session.shiftTemplateId || null,
+    isLate: session.isLate || false,
+    isEarlyDeparture: session.isEarlyDeparture || false,
+    scheduledStart: session.scheduledStart ? session.scheduledStart.toISOString() : null,
+    scheduledEnd: session.scheduledEnd ? session.scheduledEnd.toISOString() : null,
     intervals: session.intervals?.map((i: any) => ({
       id: i.id,
       attendanceSessionId: i.attendanceSessionId,

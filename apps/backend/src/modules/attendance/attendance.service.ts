@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { WorksitesService } from '../worksites/worksites.service';
+import { ShiftsService } from '../shifts/shifts.service';
 import { AttendanceStateMachineService } from './attendance-state-machine.service';
 import { mapAttendanceSessionToDto } from './attendance.mapper';
 import {
@@ -25,6 +26,7 @@ export class AttendanceService {
     private readonly prisma: PrismaService,
     private readonly worksitesService: WorksitesService,
     private readonly stateMachine: AttendanceStateMachineService,
+    private readonly shiftsService: ShiftsService,
   ) {}
 
   /**
@@ -62,9 +64,34 @@ export class AttendanceService {
 
     const clockInTime = input.clientTimestamp ? new Date(input.clientTimestamp) : new Date();
     const presenceStatus: WorkplacePresenceStatus = presence.isInside ? 'INSIDE' : 'OUTSIDE';
-    const reviewStatus: AttendanceReviewStatus = presence.isInside
+    let reviewStatus: AttendanceReviewStatus = presence.isInside
       ? 'NOT_REQUIRED'
       : 'PENDING_REVIEW';
+
+    // Match scheduled shift and calculate lateness
+    const matchingShift = await this.shiftsService.findMatchingShiftForTime(
+      organizationId,
+      employeeProfileId,
+      clockInTime,
+    );
+
+    let isLate = false;
+    let scheduledStart: Date | undefined = undefined;
+    let scheduledEnd: Date | undefined = undefined;
+    let shiftTemplateId: string | undefined = undefined;
+
+    if (matchingShift) {
+      shiftTemplateId = matchingShift.template.id;
+      scheduledStart = matchingShift.scheduledStart;
+      scheduledEnd = matchingShift.scheduledEnd;
+      const lateThreshold = new Date(
+        scheduledStart.getTime() + matchingShift.template.lateArrivalGraceMin * 60000,
+      );
+      if (clockInTime > lateThreshold) {
+        isLate = true;
+        reviewStatus = 'PENDING_REVIEW';
+      }
+    }
 
     const session = await this.prisma.$transaction(async (tx) => {
       const created = await tx.attendanceSession.create({
@@ -72,6 +99,10 @@ export class AttendanceService {
           organizationId,
           employeeProfileId,
           worksiteId: input.worksiteId,
+          shiftTemplateId,
+          isLate,
+          scheduledStart,
+          scheduledEnd,
           status: 'ACTIVE',
           presenceStatus,
           reviewStatus,
@@ -109,7 +140,10 @@ export class AttendanceService {
         employeeProfileId,
         status: 'ACTIVE',
       },
-      include: { intervals: { orderBy: { startedAt: 'desc' }, take: 1 } },
+      include: {
+        intervals: { orderBy: { startedAt: 'desc' }, take: 1 },
+        shiftTemplate: true,
+      },
     });
 
     if (!session) {
@@ -118,6 +152,16 @@ export class AttendanceService {
 
     const clockOutTime = input.clientTimestamp ? new Date(input.clientTimestamp) : new Date();
     const latestInterval = session.intervals[0];
+
+    let isEarlyDeparture = false;
+    if (session.shiftTemplate && session.scheduledEnd) {
+      const earlyThreshold = new Date(
+        session.scheduledEnd.getTime() - session.shiftTemplate.earlyExitGraceMin * 60000,
+      );
+      if (clockOutTime < earlyThreshold) {
+        isEarlyDeparture = true;
+      }
+    }
 
     const completed = await this.prisma.$transaction(async (tx) => {
       if (latestInterval && !latestInterval.endedAt) {
@@ -134,16 +178,12 @@ export class AttendanceService {
         });
       }
 
-      const totalElapsed = Math.max(
-        0,
-        Math.floor((clockOutTime.getTime() - session.clockInAt.getTime()) / 1000),
-      );
-
       return tx.attendanceSession.update({
         where: { id: session.id },
         data: {
           status: 'COMPLETED',
           clockOutAt: clockOutTime,
+          isEarlyDeparture,
           exitPendingSince: null,
           exitGraceExpiresAt: null,
           insideDurationSeconds: session.insideDurationSeconds + (session.presenceStatus === 'INSIDE' ? Math.max(0, Math.floor((clockOutTime.getTime() - session.lastEvaluatedAt.getTime()) / 1000)) : 0),
