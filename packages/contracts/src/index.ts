@@ -211,3 +211,44 @@ export interface SessionValidationDto {
   role: MembershipRole;
   employeeProfileId?: string;
 }
+
+// 8. Offline Event Journal & Sync DTOs
+export type AttendanceEventType =
+  | 'PUNCH_IN_REQUESTED'
+  | 'PUNCH_IN_ACCEPTED'
+  | 'PUNCH_IN_REJECTED'
+  | 'LOCATION_OBSERVED'
+  | 'GEOFENCE_EXIT_DETECTED'
+  | 'EXIT_GRACE_STARTED'
+  | 'EXIT_CONFIRMED'
+  | 'GEOFENCE_REENTRY'
+  | 'CONNECTIVITY_GAP_OPENED'
+  | 'CONNECTIVITY_GAP_CLOSED'
+  | 'PUNCH_OUT_REQUESTED'
+  | 'PUNCH_OUT_ACCEPTED'
+  | 'ATTENDANCE_ADJUSTED';
+
+export interface AttendanceEventDto {
+  eventId: string;
+  organizationId: string;
+  employeeProfileId: string;
+  eventType: AttendanceEventType;
+  sequenceNumber: number;
+  clientTimestamp: string;
+  elapsedRealtimeMs?: number;
+  payload: Record<string, any>;
+  signature?: string;
+}
+
+export interface SyncBatchInput {
+  events: AttendanceEventDto[];
+}
+
+export interface SyncBatchResponse {
+  acknowledgedEventIds: string[];
+  rejectedEvents: {
+    eventId: string;
+    reason: string;
+  }[];
+}
+
