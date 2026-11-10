@@ -377,3 +377,67 @@ export interface AttendanceVarianceDto {
   actualDurationMinutes: number;
 }
 
+// 11. Reports, Timesheets & Audit DTOs
+export interface DailyTimesheetRowDto {
+  sessionId: string;
+  date: string;
+  employeeCode: string;
+  employeeName: string;
+  department?: string | null;
+  shiftName?: string | null;
+  clockInAt: string;
+  clockOutAt?: string | null;
+  isLate: boolean;
+  isEarlyDeparture: boolean;
+  insideDurationMinutes: number;
+  outsideDurationMinutes: number;
+  breakDurationMinutes: number;
+  status: AttendanceSessionStatus;
+  reviewStatus: AttendanceReviewStatus;
+}
+
+export interface TimesheetSummaryDto {
+  startDate: string;
+  endDate: string;
+  totalSessions: number;
+  totalInsideMinutes: number;
+  totalOutsideMinutes: number;
+  totalLateCount: number;
+  totalEarlyDepartureCount: number;
+  rows: DailyTimesheetRowDto[];
+}
+
+export interface WorksiteAdherenceRowDto {
+  worksiteId: string;
+  worksiteName: string;
+  totalSessions: number;
+  totalInsideMinutes: number;
+  totalOutsideMinutes: number;
+  adherencePercentage: number;
+}
+
+export interface WorksiteAdherenceReportDto {
+  startDate: string;
+  endDate: string;
+  worksites: WorksiteAdherenceRowDto[];
+}
+
+export interface AttendanceCorrectionDto {
+  id: string;
+  organizationId: string;
+  attendanceSessionId: string;
+  adjustedByUserId: string;
+  fieldAdjusted: string;
+  originalValue: string;
+  correctedValue: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface CreateCorrectionInput {
+  attendanceSessionId: string;
+  fieldAdjusted: string;
+  newValue: string;
+  reason: string;
+}
+
