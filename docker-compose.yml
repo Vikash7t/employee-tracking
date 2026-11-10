@@ -1,0 +1,84 @@
+services:
+  # ==============================================================================
+  # 1. PostGIS Database: PostgreSQL 16 with PostGIS 3.5 Extension
+  # ==============================================================================
+  postgis:
+    image: postgis/postgis:16-3.5-alpine
+    container_name: employee-tracking-postgis
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_secure_password_123
+      POSTGRES_DB: employee_tracking_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d employee_tracking_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - employee-tracking-network
+
+  # ==============================================================================
+  # 2. NestJS Backend API & PostGIS Spatial Gateway
+  # ==============================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: employee-tracking-backend
+    depends_on:
+      postgis:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: "postgresql://postgres:postgres_dev_secure_password_123@postgis:5432/employee_tracking_dev?schema=public"
+      JWT_SECRET: "enterprise_hardened_jwt_signing_secret_min_32_chars"
+      ALLOWED_ORIGINS: "http://localhost:3000,http://admin:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/api/v1/health/liveness', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - employee-tracking-network
+
+  # ==============================================================================
+  # 3. Next.js 15 Admin Command Center & Spatial Portal
+  # ==============================================================================
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: employee-tracking-admin
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      NEXT_PUBLIC_API_URL: "http://localhost:4000"
+    restart: unless-stopped
+    networks:
+      - employee-tracking-network
+
+# ==============================================================================
+# Isolated Bridge Network & Persistent Volumes
+# ==============================================================================
+networks:
+  employee-tracking-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local

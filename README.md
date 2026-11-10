@@ -130,7 +130,8 @@ curl -X POST http://localhost:4000/api/v1/worksites/<WORKSITE_ID>/verify-presenc
 | **Phase 7** | MapLibre Live Command Center | ✅ Complete | MapLibre vector geofencing, live workforce command center, circular/polygon geofence editor, granular attendance timeline |
 | **Phase 8** | Shift & Break Orchestration | ✅ Complete | Shift templates, overnight shift handling, schedule conflict prevention, lateness & variance tracking |
 | **Phase 9** | Audited Reports & CSV Stream | ✅ Complete | Timesheet analytics, adherence reporting, streaming CSV export with OWASP CWE-1236 formula neutralization, audited attendance corrections with immutable trail |
-| **Phase 10** | Enterprise Hardening & CI/CD | 📋 Planned | GitHub Actions, migration backups, Docker packaging, OWASP audits |
+| **Phase 10** | Enterprise Hardening & CI/CD | ✅ Complete | Multi-stage unprivileged Dockerfiles (CIS Benchmark), Next.js 15 standalone, PostGIS 16-3.5 docker-compose, GitHub Actions 3-stage CI/CD, liveness/readiness probes, correlation ID tracing (CWE-117) |
+| **Phase 11** | Portfolio & Recruiter Showcase | 📋 Planned | Synthetic demo dataset, offline failure simulator, Architecture Decision Records (ADR-001 - ADR-006) |
 
 ---
 

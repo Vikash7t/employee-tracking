@@ -31,14 +31,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? (errorResponse as Record<string, unknown>).message
         : errorResponse;
 
+    const correlationId = (request as any).correlationId;
+
     this.logger.error(
-      `[${request.method}] ${request.url} - Status ${status} - Error: ${JSON.stringify(message)}`
+      `[${request.method}] ${request.url} [Correlation: ${correlationId || 'N/A'}] - Status ${status} - Error: ${JSON.stringify(message)}`
     );
 
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
+      correlationId: correlationId || undefined,
       message,
     });
   }
