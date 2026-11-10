@@ -19,6 +19,23 @@ export interface HealthCheckResponse {
   database: DatabaseHealthStatus;
 }
 
+export interface LivenessCheckResponse {
+  status: 'ok' | 'degraded';
+  timestamp: string;
+  uptimeSeconds: number;
+  memoryUsageMb: {
+    rss: number;
+    heapTotal: number;
+    heapUsed: number;
+  };
+}
+
+export interface ReadinessCheckResponse {
+  status: 'ready' | 'not_ready';
+  timestamp: string;
+  database: DatabaseHealthStatus;
+}
+
 // 2. Roles & Permissions
 export type MembershipRole = 'OWNER' | 'ORG_ADMIN' | 'MANAGER' | 'MEMBER';
 export type WorksiteType = 'CIRCULAR' | 'POLYGON';

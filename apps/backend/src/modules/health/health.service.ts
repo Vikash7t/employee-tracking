@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SpatialService } from '../../database/spatial.service';
-import { HealthCheckResponse } from '@employee-tracking/contracts';
+import {
+  HealthCheckResponse,
+  LivenessCheckResponse,
+  ReadinessCheckResponse,
+} from '@employee-tracking/contracts';
 
 @Injectable()
 export class HealthService {
@@ -11,6 +15,29 @@ export class HealthService {
     private readonly prisma: PrismaService,
     private readonly spatialService: SpatialService,
   ) {}
+
+  checkLiveness(): LivenessCheckResponse {
+    const mem = process.memoryUsage();
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),
+      memoryUsageMb: {
+        rss: Math.round((mem.rss / (1024 * 1024)) * 100) / 100,
+        heapTotal: Math.round((mem.heapTotal / (1024 * 1024)) * 100) / 100,
+        heapUsed: Math.round((mem.heapUsed / (1024 * 1024)) * 100) / 100,
+      },
+    };
+  }
+
+  async checkReadiness(): Promise<ReadinessCheckResponse> {
+    const health = await this.checkHealth();
+    return {
+      status: health.status === 'ok' ? 'ready' : 'not_ready',
+      timestamp: health.timestamp,
+      database: health.database,
+    };
+  }
 
   async checkHealth(): Promise<HealthCheckResponse> {
     const startDb = Date.now();

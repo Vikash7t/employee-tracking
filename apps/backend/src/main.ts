@@ -8,10 +8,14 @@ import * as path from 'path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { AppLogger } from './common/logger/app-logger.service';
+import { validateEnvironment } from './common/config/env-validator';
 
 // Load root .env
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 dotenv.config();
+
+// Fail-fast environment validation
+validateEnvironment();
 
 async function bootstrap(): Promise<void> {
   const logger = new AppLogger();
