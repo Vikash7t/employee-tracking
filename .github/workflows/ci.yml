@@ -82,10 +82,11 @@ jobs:
       - name: Build Shared Contracts
         run: npm run build --workspace=@employee-tracking/contracts
 
-      - name: Sync Prisma Schema with PostGIS Service
+      - name: Sync Prisma Schema & Seed Database
         run: |
           npx prisma generate --schema=apps/backend/prisma/schema.prisma
           npx prisma db push --schema=apps/backend/prisma/schema.prisma
+          node apps/backend/prisma/seed.js
 
       - name: Run Backend Health & Verification Test Suites
         run: |

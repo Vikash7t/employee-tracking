@@ -5,8 +5,10 @@
  */
 const http = require('http');
 const crypto = require('crypto');
+const path = require('path');
 const { spawn } = require('child_process');
 const { PrismaClient } = require('@prisma/client');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const PORT = 4006;
 const BASE_URL = `http://localhost:${PORT}`;
@@ -77,7 +79,14 @@ async function run() {
     console.log('✅ Server online! Running Phase 9 Reports & Analytics test suite...\n');
 
     const prisma = new PrismaClient();
-    const org = await prisma.organization.findUnique({ where: { slug: 'acme-corp' } });
+    let org = await prisma.organization.findUnique({ where: { slug: 'acme-corp' } });
+    if (!org) {
+      console.log('🌱 Test database not seeded. Running seed script...');
+      const { execSync } = require('child_process');
+      execSync('node apps/backend/prisma/seed.js', { stdio: 'inherit' });
+      org = await prisma.organization.findUnique({ where: { slug: 'acme-corp' } });
+    }
+
     const ownerUser = await prisma.user.findUnique({ where: { email: 'owner@acme.com' } });
     const employeeUser = await prisma.user.findUnique({ where: { email: 'john.doe@acme.com' } });
     const employeeProfile = await prisma.employeeProfile.findUnique({
