@@ -35,6 +35,7 @@ model User {
   memberships         OrganizationMembership[]
   employeeProfiles    EmployeeProfile[]
   createdInvitations  EmployeeInvitation[]     @relation("CreatedInvitations")
+  attendanceCorrections AttendanceCorrection[]
 
   @@map("users")
 }
@@ -75,6 +76,7 @@ model Organization {
   attendanceSessions   AttendanceSession[]
   shiftTemplates       ShiftTemplate[]
   shiftAssignments     ShiftAssignment[]
+  attendanceCorrections AttendanceCorrection[]
 
   @@map("organizations")
 }
@@ -270,6 +272,7 @@ model AttendanceSession {
   worksite                Worksite             @relation(fields: [worksiteId], references: [id], onDelete: Cascade)
   shiftTemplate           ShiftTemplate?       @relation(fields: [shiftTemplateId], references: [id], onDelete: SetNull)
   intervals               AttendanceInterval[]
+  corrections             AttendanceCorrection[]
 
   @@index([organizationId])
   @@index([employeeProfileId])
@@ -338,5 +341,25 @@ model ShiftAssignment {
   @@index([employeeProfileId])
   @@index([shiftTemplateId])
   @@map("shift_assignments")
+}
+
+model AttendanceCorrection {
+  id                  String             @id @default(uuid()) @db.Uuid
+  organizationId      String             @map("organization_id") @db.Uuid
+  attendanceSessionId String             @map("attendance_session_id") @db.Uuid
+  adjustedByUserId    String             @map("adjusted_by_user_id") @db.Uuid
+  fieldAdjusted       String             @map("field_adjusted") @db.VarChar(50)
+  originalValue       String             @map("original_value") @db.Text
+  correctedValue      String             @map("corrected_value") @db.Text
+  reason              String             @db.Text
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization        Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  attendanceSession   AttendanceSession  @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  adjustedByUser      User               @relation(fields: [adjustedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([attendanceSessionId])
+  @@map("attendance_corrections")
 }
 
