@@ -961,7 +961,7 @@ Comprehensive documentation in `docs/` and Architecture Decision Records (`ADR-0
 Full GitHub README, architectural diagrams, ER diagrams, state-machine diagrams, and measured benchmarks.
 
 ## Acceptance criteria
-Recruiter can understand project in under 2 minutes, run from README, and inspect working offline/geospatial workflows.
+Recruiter can understand project in under 2 minutes, run from README, and inspect working offline/geospatial workflows. Completed and verified on `feature/phase-11-portfolio-showcase-adrs`. All 6 ADRs, synthetic demo seeder (20 employees, 3 worksites, 3 shifts), offline failure simulator, and recruiter README diagrams delivered.
 
 ---
 

@@ -17,7 +17,10 @@
     "build:backend": "npm run build --workspace=@employee-tracking/backend",
     "build:admin": "npm run build --workspace=@employee-tracking/admin",
     "prisma:generate": "npm run prisma:generate --workspace=@employee-tracking/backend",
-    "prisma:migrate": "npm run prisma:migrate --workspace=@employee-tracking/backend"
+    "prisma:migrate": "npm run prisma:migrate --workspace=@employee-tracking/backend",
+    "prisma:seed": "node apps/backend/prisma/seed.js",
+    "prisma:seed:demo": "node apps/backend/prisma/seed-demo.js",
+    "simulate:offline": "node tools/offline-simulator/simulate-offline-lifecycle.js"
   },
   "overrides": {
     "react": "19.0.0",
