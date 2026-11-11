@@ -87,11 +87,13 @@ jobs:
           npx prisma generate --schema=apps/backend/prisma/schema.prisma
           npx prisma db push --schema=apps/backend/prisma/schema.prisma
           node apps/backend/prisma/seed.js
+          node apps/backend/prisma/seed-demo.js
 
       - name: Run Backend Health & Verification Test Suites
         run: |
           node apps/backend/verify-phase9-reports.js
           node apps/backend/verify-phase10-hardening.js
+          node apps/backend/verify-phase11-portfolio.js
 
   docker-build-check:
     name: 3. Production Docker Multi-Stage Build Check
